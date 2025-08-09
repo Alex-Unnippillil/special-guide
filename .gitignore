@@ -1,0 +1,15 @@
+# Build artifacts
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Other
+TestResults/
+publish/
+
+# Mac
+.DS_Store
