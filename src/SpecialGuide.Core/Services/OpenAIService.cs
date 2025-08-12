@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 
 namespace SpecialGuide.Core.Services;
 
@@ -18,7 +19,7 @@ public class OpenAIService
         _logger = logger;
     }
 
-    public virtual async Task<string[]> GenerateSuggestionsAsync(byte[] image, string appName)
+    public virtual async Task<string[]> GenerateSuggestionsAsync(byte[] image, string appName, CancellationToken cancellationToken)
     {
         var base64 = Convert.ToBase64String(image);
         var imageUrl = "data:image/png;base64," + base64;
@@ -32,7 +33,7 @@ public class OpenAIService
             }
         };
         using var request = CreateChatRequest(payload);
-        using var response = await SendAsync(request);
+        using var response = await SendAsync(request, cancellationToken);
         var json = await response.Content.ReadAsStringAsync();
         using var doc = JsonDocument.Parse(json);
         var content = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
@@ -48,7 +49,7 @@ public class OpenAIService
         }
     }
 
-    public async Task<string> TranscribeAsync(byte[] wav)
+    public async Task<string> TranscribeAsync(byte[] wav, CancellationToken cancellationToken)
     {
         var apiKey = _settings.ApiKey;
         using var content = new MultipartFormDataContent();
@@ -57,13 +58,13 @@ public class OpenAIService
         var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/audio/transcriptions");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         request.Content = content;
-        using var response = await SendAsync(request);
+        using var response = await SendAsync(request, cancellationToken);
         var json = await response.Content.ReadAsStringAsync();
         using var doc = JsonDocument.Parse(json);
         return doc.RootElement.GetProperty("text").GetString() ?? string.Empty;
     }
 
-    public async Task<string> ChatAsync(string prompt)
+    public async Task<string> ChatAsync(string prompt, CancellationToken cancellationToken)
     {
         var payload = new
         {
@@ -74,7 +75,7 @@ public class OpenAIService
             }
         };
         using var request = CreateChatRequest(payload);
-        using var response = await SendAsync(request);
+        using var response = await SendAsync(request, cancellationToken);
         var json = await response.Content.ReadAsStringAsync();
         using var doc = JsonDocument.Parse(json);
         return doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? string.Empty;
@@ -89,9 +90,9 @@ public class OpenAIService
         return request;
     }
 
-    private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request)
+    private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        var response = await _httpClient.SendAsync(request);
+        var response = await _httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             var body = await response.Content.ReadAsStringAsync();
