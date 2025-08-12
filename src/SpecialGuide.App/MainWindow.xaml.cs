@@ -9,13 +9,15 @@ public partial class MainWindow : Window
     private readonly HookService _hookService;
     private readonly OverlayService _overlayService;
     private readonly SuggestionService _suggestionService;
+    private readonly WindowService _windowService;
     private readonly ILogger<MainWindow> _logger;
-    public MainWindow(HookService hookService, OverlayService overlayService, SuggestionService suggestionService, ILogger<MainWindow> logger)
+    public MainWindow(HookService hookService, OverlayService overlayService, SuggestionService suggestionService, WindowService windowService, ILogger<MainWindow> logger)
     {
         InitializeComponent();
         _hookService = hookService;
         _overlayService = overlayService;
         _suggestionService = suggestionService;
+        _windowService = windowService;
         _logger = logger;
         _hookService.MiddleClick += async (sender, e) =>
         {
@@ -33,7 +35,8 @@ public partial class MainWindow : Window
 
     private async Task OnMiddleClick(object? sender, EventArgs e)
     {
-        var suggestions = await _suggestionService.GetSuggestionsAsync("app");
+        var app = _windowService.GetActiveProcessName();
+        var suggestions = await _suggestionService.GetSuggestionsAsync(app);
         _overlayService.ShowAtCursor(suggestions);
     }
 }
