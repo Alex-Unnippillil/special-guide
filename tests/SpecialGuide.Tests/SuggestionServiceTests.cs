@@ -20,7 +20,7 @@ public class SuggestionServiceTests
 
     private class FakeCaptureService : CaptureService
     {
-        public override Task<byte[]> CaptureScreenAsync() => Task.FromResult(Array.Empty<byte>());
+        public override byte[] CaptureScreen() => Array.Empty<byte>();
     }
 
     private class FakeOpenAIService : OpenAIService

@@ -15,7 +15,7 @@ public class SuggestionService
 
     public async Task<string[]> GetSuggestionsAsync(string appName)
     {
-        var image = await _capture.CaptureScreenAsync();
+        var image = _capture.CaptureScreen();
         var suggestions = await _openAI.GenerateSuggestionsAsync(image, appName);
         return suggestions.Select(s => s.Length > 80 ? s[..80] : s).ToArray();
     }
