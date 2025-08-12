@@ -1,4 +1,5 @@
 using System.Windows;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SpecialGuide.Core.Models;
@@ -14,8 +15,9 @@ public partial class App : Application
     {
         base.OnStartup(e);
         _host = Host.CreateDefaultBuilder()
-            .ConfigureServices(services =>
+            .ConfigureServices((context, services) =>
             {
+                services.Configure<Settings>(context.Configuration.GetSection("Settings"));
                 services.AddSingleton<Overlay.RadialMenuWindow>();
                 services.AddSingleton<IRadialMenu>(sp => sp.GetRequiredService<Overlay.RadialMenuWindow>());
                 services.AddSingleton<HookService>();
@@ -25,8 +27,8 @@ public partial class App : Application
                 services.AddSingleton<OpenAIService>();
                 services.AddSingleton<AudioService>();
                 services.AddSingleton<SuggestionService>();
-                services.AddSingleton<ClipboardService>();
                 services.AddSingleton<SettingsService>();
+                services.AddSingleton<ClipboardService>();
                 services.AddSingleton<MainWindow>();
             })
             .Build();

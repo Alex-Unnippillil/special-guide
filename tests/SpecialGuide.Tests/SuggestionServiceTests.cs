@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+using SpecialGuide.Core.Models;
 using SpecialGuide.Core.Services;
 using System.Threading.Tasks;
 using Xunit;
@@ -23,11 +25,24 @@ public class SuggestionServiceTests
 
     private class FakeOpenAIService : OpenAIService
     {
-        public FakeOpenAIService() : base(new SettingsService()) { }
+        public FakeOpenAIService() : base(new SettingsService(new FakeOptionsMonitor<Settings>(new Settings()))) { }
         public override async Task<string[]> GenerateSuggestionsAsync(byte[] image, string appName)
         {
             await Task.CompletedTask;
             return new[] { new string('a', 100) };
+        }
+    }
+
+    private class FakeOptionsMonitor<T> : IOptionsMonitor<T>
+    {
+        public FakeOptionsMonitor(T currentValue) => CurrentValue = currentValue;
+        public T CurrentValue { get; }
+        public T Get(string? name) => CurrentValue;
+        public IDisposable OnChange(Action<T, string> listener) => new DummyDisposable();
+
+        private sealed class DummyDisposable : IDisposable
+        {
+            public void Dispose() { }
         }
     }
 }

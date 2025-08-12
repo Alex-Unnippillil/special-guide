@@ -5,7 +5,15 @@ namespace SpecialGuide.Core.Services;
 
 public class ClipboardService
 {
-    public bool AutoPaste { get; set; }
+    public bool AutoPaste { get; private set; }
+
+    public ClipboardService(SettingsService settings)
+    {
+        UpdateAutoPaste(settings.Settings.AutoPaste);
+        settings.SettingsChanged += s => UpdateAutoPaste(s.AutoPaste);
+    }
+
+    public void UpdateAutoPaste(bool autoPaste) => AutoPaste = autoPaste;
 
     public void SetText(string text)
     {
