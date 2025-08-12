@@ -27,7 +27,6 @@ public partial class App : Application
                 services.AddSingleton<HookService>();
                 services.AddSingleton<OverlayService>();
                 services.AddSingleton<CaptureService>();
-                services.AddSingleton<LoggingService>();
                 services.AddHttpClient<OpenAIService>();
                 services.AddSingleton<AudioService>();
                 services.AddSingleton<SettingsService>();

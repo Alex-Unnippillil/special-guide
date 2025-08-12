@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace SpecialGuide.Core.Services;
 
@@ -9,9 +10,9 @@ public class OpenAIService
 {
     private readonly HttpClient _httpClient;
     private readonly SettingsService _settings;
-    private readonly LoggingService _logger;
+    private readonly ILogger<OpenAIService> _logger;
 
-    public OpenAIService(HttpClient httpClient, SettingsService settings, LoggingService logger)
+    public OpenAIService(HttpClient httpClient, SettingsService settings, ILogger<OpenAIService> logger)
     {
         _httpClient = httpClient;
         _settings = settings;
