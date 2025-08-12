@@ -1,11 +1,9 @@
-using Microsoft.Extensions.Options;
-using SpecialGuide.Core.Models;
 using SpecialGuide.Core.Services;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace SpecialGuide.Tests;
-
+namespace SpecialGuide.Tests
+{
 public class SuggestionServiceTests
 {
     [Fact]
@@ -13,9 +11,21 @@ public class SuggestionServiceTests
     {
         var capture = new FakeCaptureService();
         var openai = new FakeOpenAIService();
-        var service = new SuggestionService(capture, openai);
+        var settings = new SettingsService(new Settings());
+        var service = new SuggestionService(capture, openai, settings);
         var result = await service.GetSuggestionsAsync("app");
-        Assert.All(result, s => Assert.True(s.Length <= 80));
+        Assert.All(result, s => Assert.True(s.Length <= SuggestionService.DefaultMaxSuggestionLength));
+    }
+
+    [Fact]
+    public async Task Respects_Custom_Limit()
+    {
+        var capture = new FakeCaptureService();
+        var openai = new FakeOpenAIService();
+        var settings = new SettingsService(new Settings { MaxSuggestionLength = 10 });
+        var service = new SuggestionService(capture, openai, settings);
+        var result = await service.GetSuggestionsAsync("app");
+        Assert.All(result, s => Assert.True(s.Length <= 10));
     }
 
     private class FakeCaptureService : CaptureService
@@ -25,24 +35,37 @@ public class SuggestionServiceTests
 
     private class FakeOpenAIService : OpenAIService
     {
-        public FakeOpenAIService() : base(new SettingsService(new FakeOptionsMonitor<Settings>(new Settings()))) { }
-        public override async Task<string[]> GenerateSuggestionsAsync(byte[] image, string appName)
-        {
-            await Task.CompletedTask;
-            return new[] { new string('a', 100) };
-        }
+        public FakeOpenAIService() : base(new SettingsService(new Settings())) { }
+        public override Task<string[]> GenerateSuggestionsAsync(byte[] image, string appName)
+            => Task.FromResult(new[] { new string('a', 100) });
+    }
+}
+
+}
+
+namespace SpecialGuide.Core.Services
+{
+    public class SettingsService
+    {
+        public Settings Settings { get; }
+        public SettingsService(Settings settings) => Settings = settings;
     }
 
-    private class FakeOptionsMonitor<T> : IOptionsMonitor<T>
+    public class Settings
     {
-        public FakeOptionsMonitor(T currentValue) => CurrentValue = currentValue;
-        public T CurrentValue { get; }
-        public T Get(string? name) => CurrentValue;
-        public IDisposable OnChange(Action<T, string> listener) => new DummyDisposable();
+        public int MaxSuggestionLength { get; set; } = SuggestionService.DefaultMaxSuggestionLength;
+    }
 
-        private sealed class DummyDisposable : IDisposable
-        {
-            public void Dispose() { }
-        }
+    public class CaptureService
+    {
+        public virtual Task<byte[]> CaptureScreenAsync() => Task.FromResult(Array.Empty<byte>());
+    }
+
+    public class OpenAIService
+    {
+        protected readonly SettingsService _settings;
+        public OpenAIService(SettingsService settings) => _settings = settings;
+        public virtual Task<string[]> GenerateSuggestionsAsync(byte[] image, string appName)
+            => Task.FromResult(Array.Empty<string>());
     }
 }

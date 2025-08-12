@@ -22,8 +22,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AudioServiceTests.cs" />
-    <Compile Include="RadialMenuServiceTests.cs" />
+    <Compile Include="SuggestionServiceTests.cs" />
     <Compile Include="..\..\src\SpecialGuide.Core\Services\AudioService.cs" Link="Services/AudioService.cs" />
-    <Compile Include="..\..\src\SpecialGuide.Core\Services\RadialMenuService.cs" Link="Services/RadialMenuService.cs" />
+    <Compile Include="..\..\src\SpecialGuide.Core\Services\SuggestionService.cs" Link="Services/SuggestionService.cs" />
   </ItemGroup>
 </Project>
