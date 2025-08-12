@@ -2,7 +2,7 @@ using NAudio.Wave;
 
 namespace SpecialGuide.Core.Services;
 
-public class AudioService
+public class AudioService : IDisposable
 {
     private WaveInEvent? _waveIn;
     private MemoryStream? _stream;
@@ -21,6 +21,18 @@ public class AudioService
     {
         _waveIn?.StopRecording();
         _writer?.Flush();
-        return _stream?.ToArray() ?? Array.Empty<byte>();
+        var data = _stream?.ToArray() ?? Array.Empty<byte>();
+        Dispose();
+        return data;
+    }
+
+    public void Dispose()
+    {
+        _waveIn?.Dispose();
+        _waveIn = null;
+        _writer?.Dispose();
+        _writer = null;
+        _stream?.Dispose();
+        _stream = null;
     }
 }
