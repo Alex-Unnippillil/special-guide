@@ -9,18 +9,17 @@ public class OpenAIService
 {
     private readonly HttpClient _httpClient;
     private readonly SettingsService _settings;
+    private readonly LoggingService _logger;
 
-    public OpenAIService(SettingsService settings)
+    public OpenAIService(HttpClient httpClient, SettingsService settings, LoggingService logger)
     {
+        _httpClient = httpClient;
         _settings = settings;
-        _httpClient = new HttpClient();
+        _logger = logger;
     }
 
     public virtual async Task<string[]> GenerateSuggestionsAsync(byte[] image, string appName)
     {
-        var apiKey = _settings.ApiKey;
-        var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         var base64 = Convert.ToBase64String(image);
         var imageUrl = "data:image/png;base64," + base64;
         var payload = new
@@ -32,8 +31,8 @@ public class OpenAIService
                 new { role = "user", content = new object[]{ new { type="image_url", image_url = new { url = imageUrl } } } }
             }
         };
-        request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-        var response = await _httpClient.SendAsync(request);
+        using var request = CreateChatRequest(payload);
+        using var response = await SendAsync(request);
         var json = await response.Content.ReadAsStringAsync();
         using var doc = JsonDocument.Parse(json);
         var content = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
@@ -58,7 +57,7 @@ public class OpenAIService
         var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/audio/transcriptions");
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         request.Content = content;
-        var response = await _httpClient.SendAsync(request);
+        using var response = await SendAsync(request);
         var json = await response.Content.ReadAsStringAsync();
         using var doc = JsonDocument.Parse(json);
         return doc.RootElement.GetProperty("text").GetString() ?? string.Empty;
@@ -66,9 +65,6 @@ public class OpenAIService
 
     public async Task<string> ChatAsync(string prompt)
     {
-        var apiKey = _settings.ApiKey;
-        var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         var payload = new
         {
             model = "gpt-4o-mini",
@@ -77,10 +73,32 @@ public class OpenAIService
                 new { role = "user", content = prompt }
             }
         };
-        request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-        var response = await _httpClient.SendAsync(request);
+        using var request = CreateChatRequest(payload);
+        using var response = await SendAsync(request);
         var json = await response.Content.ReadAsStringAsync();
         using var doc = JsonDocument.Parse(json);
         return doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? string.Empty;
+    }
+
+    private HttpRequestMessage CreateChatRequest(object payload)
+    {
+        var apiKey = _settings.ApiKey;
+        var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+        return request;
+    }
+
+    private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request)
+    {
+        var response = await _httpClient.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            var ex = new HttpRequestException($"OpenAI request failed with status code {response.StatusCode}: {body}");
+            _logger.LogError(ex, "OpenAI API call failed");
+            throw ex;
+        }
+        return response;
     }
 }
