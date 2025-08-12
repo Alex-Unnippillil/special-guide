@@ -45,6 +45,8 @@ public partial class App : Application
     {
         if (_host != null && _cts != null)
         {
+            var hookService = _host.Services.GetService<HookService>();
+            hookService?.Stop();
             await _host.StopAsync(_cts.Token);
             _host.Dispose();
             _cts.Dispose();

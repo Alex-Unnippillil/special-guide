@@ -31,6 +31,7 @@ public partial class MainWindow : Window
             }
         };
         _hookService.Start();
+        Closed += (_, _) => _hookService.Stop();
     }
 
     private async Task OnMiddleClick(object? sender, EventArgs e)

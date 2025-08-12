@@ -61,5 +61,6 @@ namespace SpecialGuide.Core.Services
     public class CaptureService
     {
         public virtual byte[] CaptureScreen() => Array.Empty<byte>();
+
     }
 }

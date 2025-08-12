@@ -10,11 +10,27 @@ public class HookService : IDisposable
 
     public event EventHandler? MiddleClick;
 
-    public void Start() => _hookId = SetHook(HookCallback);
+    public void Start()
+    {
+        _hookId = SetHook(HookCallback);
+        if (_hookId == IntPtr.Zero)
+        {
+            throw new InvalidOperationException("Failed to set Windows hook");
+        }
+    }
+
+    public void Stop()
+    {
+        if (_hookId != IntPtr.Zero)
+        {
+            UnhookWindowsHookEx(_hookId);
+            _hookId = IntPtr.Zero;
+        }
+    }
 
     public void SetOverlayVisible(bool visible) => _overlayVisible = visible;
 
-    public void Dispose() => UnhookWindowsHookEx(_hookId);
+    public void Dispose() => Stop();
 
     private IntPtr SetHook(HookProc proc)
     {
