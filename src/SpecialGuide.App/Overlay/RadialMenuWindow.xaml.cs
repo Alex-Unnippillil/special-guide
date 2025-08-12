@@ -9,12 +9,14 @@ public partial class RadialMenuWindow : Window, IRadialMenu
 {
     private readonly SuggestionService _suggestionService;
     private readonly ClipboardService _clipboardService;
+    private readonly HookService _hookService;
 
-    public RadialMenuWindow(SuggestionService suggestionService, ClipboardService clipboardService)
+    public RadialMenuWindow(SuggestionService suggestionService, ClipboardService clipboardService, HookService hookService)
     {
         InitializeComponent();
         _suggestionService = suggestionService;
         _clipboardService = clipboardService;
+        _hookService = hookService;
     }
 
     public void Populate(string[] suggestions)
@@ -44,10 +46,15 @@ public partial class RadialMenuWindow : Window, IRadialMenu
         Left = x - Width / 2;
         Top = y - Height / 2;
         Show();
+        _hookService.SetOverlayVisible(true);
         Activate();
     }
 
-    public void Hide() => base.Hide();
+    public void Hide()
+    {
+        base.Hide();
+        _hookService.SetOverlayVisible(false);
+    }
 
     private void OnSuggestionSelected(string text)
     {
