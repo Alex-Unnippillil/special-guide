@@ -1,3 +1,5 @@
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,10 +12,12 @@ namespace SpecialGuide.App;
 public partial class App : Application
 {
     private IHost? _host;
+    private CancellationTokenSource? _cts;
 
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async Task OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        _cts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken.None);
         _host = Host.CreateDefaultBuilder()
             .ConfigureServices((context, services) =>
             {
@@ -32,17 +36,18 @@ public partial class App : Application
             })
             .Build();
 
-        _host.Start();
+        await _host.StartAsync(_cts.Token);
         var window = _host.Services.GetRequiredService<MainWindow>();
         window.Hide();
     }
 
-    protected override async void OnExit(ExitEventArgs e)
+    protected override async Task OnExit(ExitEventArgs e)
     {
-        if (_host != null)
+        if (_host != null && _cts != null)
         {
-            await _host.StopAsync();
+            await _host.StopAsync(_cts.Token);
             _host.Dispose();
+            _cts.Dispose();
         }
         base.OnExit(e);
     }
