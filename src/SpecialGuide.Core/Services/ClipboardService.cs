@@ -5,6 +5,9 @@ namespace SpecialGuide.Core.Services;
 
 public class ClipboardService
 {
+    public const ushort VK_CONTROL = 0x11;
+    public const ushort VK_V = 0x56;
+
     public bool AutoPaste { get; private set; }
 
     public ClipboardService(SettingsService settings)
@@ -28,10 +31,10 @@ public class ClipboardService
     {
         var inputs = new INPUT[]
         {
-            new INPUT { type = 1, U = new InputUnion { ki = new KEYBDINPUT { wVk = 0x11 } } }, // Ctrl down
-            new INPUT { type = 1, U = new InputUnion { ki = new KEYBDINPUT { wVk = 0x56 } } }, // V down
-            new INPUT { type = 1, U = new InputUnion { ki = new KEYBDINPUT { wVk = 0x56, dwFlags = 2 } } }, // V up
-            new INPUT { type = 1, U = new InputUnion { ki = new KEYBDINPUT { wVk = 0x11, dwFlags = 2 } } } // Ctrl up
+            new INPUT { type = 1, U = new InputUnion { ki = new KEYBDINPUT { wVk = VK_CONTROL } } }, // Ctrl down
+            new INPUT { type = 1, U = new InputUnion { ki = new KEYBDINPUT { wVk = VK_V } } }, // V down
+            new INPUT { type = 1, U = new InputUnion { ki = new KEYBDINPUT { wVk = VK_V, dwFlags = 2 } } }, // V up
+            new INPUT { type = 1, U = new InputUnion { ki = new KEYBDINPUT { wVk = VK_CONTROL, dwFlags = 2 } } } // Ctrl up
         };
         SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
     }
