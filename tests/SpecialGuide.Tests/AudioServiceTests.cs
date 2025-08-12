@@ -26,4 +26,24 @@ public class AudioServiceTests
         Assert.Null(type.GetField("_stream", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(service));
         Assert.Null(type.GetField("_writer", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(service));
     }
+
+    [Fact]
+    public void StartStopMultipleTimes_DoesNotCreateMultipleHandlers()
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+
+        var service = new AudioService();
+
+        service.Start();
+        service.Stop();
+        service.Start();
+
+        var serviceType = typeof(AudioService);
+        var waveIn = serviceType.GetField("_waveIn", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(service)!;
+        var eventField = waveIn.GetType().GetField("DataAvailable", BindingFlags.NonPublic | BindingFlags.Instance);
+        var handler = (MulticastDelegate?)eventField?.GetValue(waveIn);
+
+        Assert.Equal(1, handler?.GetInvocationList().Length ?? 0);
+    }
 }
