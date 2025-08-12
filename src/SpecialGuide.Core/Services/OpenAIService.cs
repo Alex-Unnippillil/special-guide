@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace SpecialGuide.Core.Services;
 
@@ -9,11 +10,13 @@ public class OpenAIService
 {
     private readonly HttpClient _httpClient;
     private readonly SettingsService _settings;
+    private readonly LoggingService _logger;
 
-    public OpenAIService(SettingsService settings)
+    public OpenAIService(SettingsService settings, IHttpClientFactory httpClientFactory, LoggingService logger)
     {
         _settings = settings;
-        _httpClient = new HttpClient();
+        _logger = logger;
+        _httpClient = httpClientFactory.CreateClient();
     }
 
     public virtual async Task<string[]> GenerateSuggestionsAsync(byte[] image, string appName)
@@ -34,9 +37,16 @@ public class OpenAIService
         };
         request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
         var response = await _httpClient.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            var ex = new HttpRequestException($"Failed to generate suggestions: {response.StatusCode}");
+            _logger.LogError(ex, error);
+            throw ex;
+        }
         var json = await response.Content.ReadAsStringAsync();
-        using var doc = JsonDocument.Parse(json);
-        var content = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
+        var result = JsonSerializer.Deserialize<ChatCompletionResponse>(json);
+        var content = result?.Choices?.FirstOrDefault()?.Message?.Content;
         if (string.IsNullOrWhiteSpace(content)) return Array.Empty<string>();
         try
         {
@@ -59,9 +69,16 @@ public class OpenAIService
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         request.Content = content;
         var response = await _httpClient.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            var ex = new HttpRequestException($"Transcription failed: {response.StatusCode}");
+            _logger.LogError(ex, error);
+            throw ex;
+        }
         var json = await response.Content.ReadAsStringAsync();
-        using var doc = JsonDocument.Parse(json);
-        return doc.RootElement.GetProperty("text").GetString() ?? string.Empty;
+        var result = JsonSerializer.Deserialize<TranscriptionResponse>(json);
+        return result?.Text ?? string.Empty;
     }
 
     public async Task<string> ChatAsync(string prompt)
@@ -79,8 +96,20 @@ public class OpenAIService
         };
         request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
         var response = await _httpClient.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadAsStringAsync();
+            var ex = new HttpRequestException($"Chat request failed: {response.StatusCode}");
+            _logger.LogError(ex, error);
+            throw ex;
+        }
         var json = await response.Content.ReadAsStringAsync();
-        using var doc = JsonDocument.Parse(json);
-        return doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? string.Empty;
+        var result = JsonSerializer.Deserialize<ChatCompletionResponse>(json);
+        return result?.Choices?.FirstOrDefault()?.Message?.Content ?? string.Empty;
     }
 }
+
+internal record ChatCompletionResponse(ChatChoice[] Choices);
+internal record ChatChoice(ChatMessage Message);
+internal record ChatMessage(string Content);
+internal record TranscriptionResponse(string Text);
