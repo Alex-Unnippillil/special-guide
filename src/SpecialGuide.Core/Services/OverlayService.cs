@@ -6,20 +6,27 @@ namespace SpecialGuide.Core.Services;
 public class OverlayService
 {
     private readonly IRadialMenu _menu;
+    private readonly HookService _hookService;
 
-    public OverlayService(IRadialMenu menu)
+    public OverlayService(IRadialMenu menu, HookService hookService)
     {
         _menu = menu;
+        _hookService = hookService;
     }
 
     public void ShowAtCursor(string[] suggestions)
     {
+        _hookService.SetOverlayVisible(true);
         var pos = GetCursorPosition();
         _menu.Populate(suggestions);
         _menu.Show(pos.X, pos.Y);
     }
 
-    public void Hide() => _menu.Hide();
+    public void Hide()
+    {
+        _hookService.SetOverlayVisible(false);
+        _menu.Hide();
+    }
 
     private static (double X, double Y) GetCursorPosition()
     {

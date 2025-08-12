@@ -19,7 +19,10 @@ public partial class App : Application
                 services.AddSingleton<Overlay.RadialMenuWindow>();
                 services.AddSingleton<IRadialMenu>(sp => sp.GetRequiredService<Overlay.RadialMenuWindow>());
                 services.AddSingleton<HookService>();
-                services.AddSingleton<OverlayService>();
+                services.AddSingleton<OverlayService>(sp =>
+                    new OverlayService(
+                        sp.GetRequiredService<IRadialMenu>(),
+                        sp.GetRequiredService<HookService>()));
                 services.AddSingleton<RadialMenuService>();
                 services.AddSingleton<CaptureService>();
                 services.AddSingleton<OpenAIService>();
