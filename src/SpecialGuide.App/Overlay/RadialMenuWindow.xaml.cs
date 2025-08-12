@@ -7,14 +7,12 @@ namespace SpecialGuide.App.Overlay;
 
 public partial class RadialMenuWindow : Window, IRadialMenu
 {
-    private readonly SuggestionService _suggestionService;
     private readonly ClipboardService _clipboardService;
     private readonly HookService _hookService;
 
-    public RadialMenuWindow(SuggestionService suggestionService, ClipboardService clipboardService, HookService hookService)
+    public RadialMenuWindow(ClipboardService clipboardService, HookService hookService)
     {
         InitializeComponent();
-        _suggestionService = suggestionService;
         _clipboardService = clipboardService;
         _hookService = hookService;
     }

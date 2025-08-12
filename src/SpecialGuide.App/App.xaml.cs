@@ -29,7 +29,6 @@ public partial class App : Application
                 services.AddSingleton<CaptureService>();
                 services.AddSingleton<OpenAIService>();
                 services.AddSingleton<AudioService>();
-                services.AddSingleton<SuggestionService>();
                 services.AddSingleton<SettingsService>();
                 services.AddSingleton<ClipboardService>();
                 services.AddSingleton<WindowService>();
