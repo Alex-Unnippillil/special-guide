@@ -58,7 +58,7 @@ namespace SpecialGuide.Core.Services
 
     public class CaptureService
     {
-        public virtual Task<byte[]> CaptureScreenAsync() => Task.FromResult(Array.Empty<byte>());
+        public virtual byte[] CaptureScreen() => Array.Empty<byte>();
     }
 
     public class OpenAIService

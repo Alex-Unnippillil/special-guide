@@ -25,5 +25,6 @@
     <Compile Include="SuggestionServiceTests.cs" />
     <Compile Include="..\..\src\SpecialGuide.Core\Services\AudioService.cs" Link="Services/AudioService.cs" />
     <Compile Include="..\..\src\SpecialGuide.Core\Services\SuggestionService.cs" Link="Services/SuggestionService.cs" />
+    <Compile Include="..\..\src\SpecialGuide.Core\Services\HookService.cs" Link="Services/HookService.cs" />
   </ItemGroup>
 </Project>
