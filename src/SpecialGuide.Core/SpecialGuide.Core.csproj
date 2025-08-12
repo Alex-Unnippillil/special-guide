@@ -10,4 +10,7 @@
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="SpecialGuide.Tests" />
+  </ItemGroup>
 </Project>

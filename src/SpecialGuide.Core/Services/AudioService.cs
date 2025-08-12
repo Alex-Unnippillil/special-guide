@@ -5,23 +5,23 @@ namespace SpecialGuide.Core.Services;
 public class AudioService : IDisposable
 {
     private WaveInEvent? _waveIn;
-    private MemoryStream? _stream;
-    private WaveFileWriter? _writer;
+    protected internal virtual MemoryStream? Stream { get; set; }
+    protected internal virtual WaveFileWriter? Writer { get; set; }
 
     public void Start()
     {
         _waveIn = new WaveInEvent();
-        _stream = new MemoryStream();
-        _writer = new WaveFileWriter(_stream, _waveIn.WaveFormat);
-        _waveIn.DataAvailable += (s, a) => _writer.Write(a.Buffer, 0, a.BytesRecorded);
+        Stream = new MemoryStream();
+        Writer = new WaveFileWriter(Stream, _waveIn.WaveFormat);
+        _waveIn.DataAvailable += (s, a) => Writer.Write(a.Buffer, 0, a.BytesRecorded);
         _waveIn.StartRecording();
     }
 
     public byte[] Stop()
     {
         _waveIn?.StopRecording();
-        _writer?.Flush();
-        var data = _stream?.ToArray() ?? Array.Empty<byte>();
+        Writer?.Flush();
+        var data = Stream?.ToArray() ?? Array.Empty<byte>();
         Dispose();
         return data;
     }
@@ -30,9 +30,9 @@ public class AudioService : IDisposable
     {
         _waveIn?.Dispose();
         _waveIn = null;
-        _writer?.Dispose();
-        _writer = null;
-        _stream?.Dispose();
-        _stream = null;
+        Writer?.Dispose();
+        Writer = null;
+        Stream?.Dispose();
+        Stream = null;
     }
 }

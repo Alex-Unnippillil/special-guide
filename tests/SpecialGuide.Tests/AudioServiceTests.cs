@@ -1,4 +1,3 @@
-using System.Reflection;
 using NAudio.Wave;
 using SpecialGuide.Core.Services;
 using Xunit;
@@ -16,14 +15,13 @@ public class AudioServiceTests
         var stream = new MemoryStream();
         var writer = new WaveFileWriter(stream, new WaveFormat(8000, 16, 1));
 
-        var type = typeof(AudioService);
-        type.GetField("_stream", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(service, stream);
-        type.GetField("_writer", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(service, writer);
+        service.Stream = stream;
+        service.Writer = writer;
 
         var data = service.Stop();
         Assert.NotNull(data);
 
-        Assert.Null(type.GetField("_stream", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(service));
-        Assert.Null(type.GetField("_writer", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(service));
+        Assert.Null(service.Stream);
+        Assert.Null(service.Writer);
     }
 }
