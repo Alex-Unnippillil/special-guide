@@ -1,4 +1,5 @@
 using SpecialGuide.Core.Services;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -13,7 +14,7 @@ public class SuggestionServiceTests
         var openai = new FakeOpenAIService();
         var settings = new SettingsService(new Settings());
         var service = new SuggestionService(capture, openai, settings);
-        var result = await service.GetSuggestionsAsync("app");
+        var result = await service.GetSuggestionsAsync("app", CancellationToken.None);
         Assert.All(result, s => Assert.True(s.Length <= SuggestionService.DefaultMaxSuggestionLength));
     }
 
@@ -24,7 +25,7 @@ public class SuggestionServiceTests
         var openai = new FakeOpenAIService();
         var settings = new SettingsService(new Settings { MaxSuggestionLength = 10 });
         var service = new SuggestionService(capture, openai, settings);
-        var result = await service.GetSuggestionsAsync("app");
+        var result = await service.GetSuggestionsAsync("app", CancellationToken.None);
         Assert.All(result, s => Assert.True(s.Length <= 10));
     }
 
@@ -36,7 +37,7 @@ public class SuggestionServiceTests
     private class FakeOpenAIService : OpenAIService
     {
         public FakeOpenAIService() : base(new SettingsService(new Settings())) { }
-        public override Task<string[]> GenerateSuggestionsAsync(byte[] image, string appName)
+        public override Task<string[]> GenerateSuggestionsAsync(byte[] image, string appName, CancellationToken cancellationToken)
             => Task.FromResult(new[] { new string('a', 100) });
     }
 }
@@ -58,14 +59,14 @@ namespace SpecialGuide.Core.Services
 
     public class CaptureService
     {
-        public virtual Task<byte[]> CaptureScreenAsync() => Task.FromResult(Array.Empty<byte>());
+        public virtual byte[] CaptureScreen() => Array.Empty<byte>();
     }
 
     public class OpenAIService
     {
         protected readonly SettingsService _settings;
         public OpenAIService(SettingsService settings) => _settings = settings;
-        public virtual Task<string[]> GenerateSuggestionsAsync(byte[] image, string appName)
+        public virtual Task<string[]> GenerateSuggestionsAsync(byte[] image, string appName, CancellationToken cancellationToken)
             => Task.FromResult(Array.Empty<string>());
     }
 }

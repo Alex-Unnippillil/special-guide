@@ -1,3 +1,4 @@
+using System.Threading;
 using System.Windows;
 using Microsoft.Extensions.Logging;
 using SpecialGuide.Core.Services;
@@ -23,7 +24,7 @@ public partial class MainWindow : Window
         {
             try
             {
-                await OnMiddleClick(sender, e);
+                await OnMiddleClick(sender, e, CancellationToken.None);
             }
             catch (Exception ex)
             {
@@ -33,10 +34,10 @@ public partial class MainWindow : Window
         _hookService.Start();
     }
 
-    private async Task OnMiddleClick(object? sender, EventArgs e)
+    private async Task OnMiddleClick(object? sender, EventArgs e, CancellationToken cancellationToken)
     {
         var app = _windowService.GetActiveProcessName();
-        var suggestions = await _suggestionService.GetSuggestionsAsync(app);
+        var suggestions = await _suggestionService.GetSuggestionsAsync(app, cancellationToken);
         _overlayService.ShowAtCursor(suggestions);
     }
 }
