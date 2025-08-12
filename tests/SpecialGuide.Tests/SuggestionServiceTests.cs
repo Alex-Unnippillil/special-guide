@@ -35,7 +35,7 @@ public class SuggestionServiceTests
 
     private class FakeOpenAIService : OpenAIService
     {
-        public FakeOpenAIService() : base(new SettingsService(new Settings())) { }
+        public FakeOpenAIService() : base(new HttpClient(), new SettingsService(new Settings()), new LoggingService()) { }
         public override Task<string[]> GenerateSuggestionsAsync(byte[] image, string appName)
             => Task.FromResult(new[] { new string('a', 100) });
     }
@@ -48,24 +48,18 @@ namespace SpecialGuide.Core.Services
     public class SettingsService
     {
         public Settings Settings { get; }
+        public string ApiKey => Settings.ApiKey;
         public SettingsService(Settings settings) => Settings = settings;
     }
 
     public class Settings
     {
         public int MaxSuggestionLength { get; set; } = SuggestionService.DefaultMaxSuggestionLength;
+        public string ApiKey { get; set; } = string.Empty;
     }
 
     public class CaptureService
     {
-        public virtual Task<byte[]> CaptureScreenAsync() => Task.FromResult(Array.Empty<byte>());
-    }
-
-    public class OpenAIService
-    {
-        protected readonly SettingsService _settings;
-        public OpenAIService(SettingsService settings) => _settings = settings;
-        public virtual Task<string[]> GenerateSuggestionsAsync(byte[] image, string appName)
-            => Task.FromResult(Array.Empty<string>());
+        public virtual byte[] CaptureScreen() => Array.Empty<byte>();
     }
 }

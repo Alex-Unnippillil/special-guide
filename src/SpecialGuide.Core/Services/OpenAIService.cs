@@ -29,6 +29,19 @@ public class OpenAIService
             {
                 new { role = "system", content = $"Return 6 short, actionable next-step prompts tailored to {appName}." },
                 new { role = "user", content = new object[]{ new { type="image_url", image_url = new { url = imageUrl } } } }
+            },
+            response_format = new
+            {
+                type = "json_schema",
+                json_schema = new
+                {
+                    name = "suggestions",
+                    schema = new
+                    {
+                        type = "array",
+                        items = new { type = "string" }
+                    }
+                }
             }
         };
         using var request = CreateChatRequest(payload);
@@ -37,15 +50,8 @@ public class OpenAIService
         using var doc = JsonDocument.Parse(json);
         var content = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
         if (string.IsNullOrWhiteSpace(content)) return Array.Empty<string>();
-        try
-        {
-            var suggestions = JsonSerializer.Deserialize<string[]>(content!);
-            return suggestions ?? Array.Empty<string>();
-        }
-        catch
-        {
-            return content!.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        }
+        var suggestions = JsonSerializer.Deserialize<string[]>(content!);
+        return suggestions ?? Array.Empty<string>();
     }
 
     public async Task<string> TranscribeAsync(byte[] wav)
