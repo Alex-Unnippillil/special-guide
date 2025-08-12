@@ -19,7 +19,7 @@ public class SuggestionService
 
     public async Task<string[]> GetSuggestionsAsync(string appName)
     {
-        var image = await _capture.CaptureScreenAsync();
+        var image = _capture.CaptureScreen();
         var suggestions = await _openAI.GenerateSuggestionsAsync(image, appName);
         var max = _settings.Settings.MaxSuggestionLength;
         return suggestions.Select(s => s.Length > max ? s[..max] : s).ToArray();

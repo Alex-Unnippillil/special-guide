@@ -7,7 +7,7 @@ namespace SpecialGuide.Core.Services;
 
 public class CaptureService
 {
-    public virtual Task<byte[]> CaptureScreenAsync()
+    public virtual byte[] CaptureScreen()
     {
         var width = (int)SystemParameters.PrimaryScreenWidth;
         var height = (int)SystemParameters.PrimaryScreenHeight;
@@ -18,6 +18,6 @@ public class CaptureService
         }
         using var ms = new MemoryStream();
         bmp.Save(ms, ImageFormat.Png);
-        return Task.FromResult(ms.ToArray());
+        return ms.ToArray();
     }
 }
