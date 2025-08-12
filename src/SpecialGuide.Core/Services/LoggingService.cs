@@ -11,5 +11,5 @@ public class LoggingService
         _logger = logger;
     }
 
-    public void LogError(Exception ex, string message) => _logger.LogError(ex, message);
+    public virtual void LogError(Exception ex, string message) => _logger.LogError(ex, message);
 }

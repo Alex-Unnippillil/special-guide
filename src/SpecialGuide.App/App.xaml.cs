@@ -25,6 +25,7 @@ public partial class App : Application
                 services.AddSingleton<OpenAIService>();
                 services.AddSingleton<AudioService>();
                 services.AddSingleton<SuggestionService>();
+                services.AddSingleton<LoggingService>();
                 services.AddSingleton<ClipboardService>();
                 services.AddSingleton<SettingsService>();
                 services.AddSingleton<MainWindow>();
