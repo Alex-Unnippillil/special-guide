@@ -28,6 +28,7 @@ public partial class App : Application
                 services.AddSingleton<SuggestionService>();
                 services.AddSingleton<SettingsService>();
                 services.AddSingleton<ClipboardService>();
+                services.AddSingleton<WindowService>();
                 services.AddSingleton<MainWindow>();
             })
             .Build();
