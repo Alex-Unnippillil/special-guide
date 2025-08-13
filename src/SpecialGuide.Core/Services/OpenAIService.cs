@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -11,6 +12,8 @@ public class OpenAIService
     private readonly HttpClient _httpClient;
     private readonly SettingsService _settings;
     private readonly ILogger<OpenAIService> _logger;
+
+    public OpenAIError? LastError { get; private set; }
 
     public OpenAIService(HttpClient httpClient, SettingsService settings, ILogger<OpenAIService> logger)
     {
@@ -45,14 +48,24 @@ public class OpenAIService
                 }
             }
         };
-        using var request = CreateChatRequest(payload);
-        using var response = await SendAsync(request);
-        var json = await response.Content.ReadAsStringAsync();
-        using var doc = JsonDocument.Parse(json);
-        var content = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
-        if (string.IsNullOrWhiteSpace(content)) return Array.Empty<string>();
-        var suggestions = JsonSerializer.Deserialize<string[]>(content!);
-        return suggestions ?? Array.Empty<string>();
+        using var response = await SendAsync(() => CreateChatRequest(payload));
+        if (response == null) return Array.Empty<string>();
+        try
+        {
+            var json = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            var content = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
+            if (string.IsNullOrWhiteSpace(content)) return Array.Empty<string>();
+            var suggestions = JsonSerializer.Deserialize<string[]>(content!);
+            LastError = null;
+            return suggestions ?? Array.Empty<string>();
+        }
+        catch (Exception ex) when (ex is JsonException or FormatException)
+        {
+            LastError = new OpenAIError(null, ex.Message);
+            _logger.LogError(ex, "Failed to parse suggestions");
+            return Array.Empty<string>();
+        }
     }
 
     public async Task<string> TranscribeAsync(byte[] wav)
@@ -61,12 +74,21 @@ public class OpenAIService
         using var content = new MultipartFormDataContent();
         content.Add(new ByteArrayContent(wav), "file", "audio.wav");
         content.Add(new StringContent("whisper-1"), "model");
-        var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/audio/transcriptions");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        request.Content = content;
-        using var response = await SendAsync(request);
+        using var response = await SendAsync(() =>
+        {
+            var req = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/audio/transcriptions");
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+            req.Content = new MultipartFormDataContent
+            {
+                { new ByteArrayContent(wav), "file", "audio.wav" },
+                { new StringContent("whisper-1"), "model" }
+            };
+            return req;
+        });
+        if (response == null) return string.Empty;
         var json = await response.Content.ReadAsStringAsync();
         using var doc = JsonDocument.Parse(json);
+        LastError = null;
         return doc.RootElement.GetProperty("text").GetString() ?? string.Empty;
     }
 
@@ -80,10 +102,11 @@ public class OpenAIService
                 new { role = "user", content = prompt }
             }
         };
-        using var request = CreateChatRequest(payload);
-        using var response = await SendAsync(request);
+        using var response = await SendAsync(() => CreateChatRequest(payload));
+        if (response == null) return string.Empty;
         var json = await response.Content.ReadAsStringAsync();
         using var doc = JsonDocument.Parse(json);
+        LastError = null;
         return doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? string.Empty;
     }
 
@@ -96,16 +119,53 @@ public class OpenAIService
         return request;
     }
 
-    private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request)
+    private async Task<HttpResponseMessage?> SendAsync(Func<HttpRequestMessage> requestFactory)
     {
-        var response = await _httpClient.SendAsync(request);
-        if (!response.IsSuccessStatusCode)
+        const int maxRetries = 3;
+        var delay = TimeSpan.FromSeconds(1);
+        for (int attempt = 0; attempt < maxRetries; attempt++)
         {
-            var body = await response.Content.ReadAsStringAsync();
-            var ex = new HttpRequestException($"OpenAI request failed with status code {response.StatusCode}: {body}");
-            _logger.LogError(ex, "OpenAI API call failed");
-            throw ex;
+            using var request = requestFactory();
+            try
+            {
+                var response = await _httpClient.SendAsync(request);
+                if (response.IsSuccessStatusCode)
+                {
+                    LastError = null;
+                    return response;
+                }
+
+                if (IsTransient(response.StatusCode) && attempt < maxRetries - 1)
+                {
+                    response.Dispose();
+                    await Task.Delay(delay);
+                    delay *= 2;
+                    continue;
+                }
+
+                var body = await response.Content.ReadAsStringAsync();
+                LastError = new OpenAIError((int)response.StatusCode, body);
+                _logger.LogError("OpenAI API call failed with status code {StatusCode}: {Body}", response.StatusCode, body);
+                response.Dispose();
+                return null;
+            }
+            catch (HttpRequestException) when (attempt < maxRetries - 1)
+            {
+                await Task.Delay(delay);
+                delay *= 2;
+            }
+            catch (Exception ex)
+            {
+                LastError = new OpenAIError(null, ex.Message);
+                _logger.LogError(ex, "OpenAI API call failed");
+                return null;
+            }
         }
-        return response;
+        return null;
     }
+
+    private static bool IsTransient(HttpStatusCode statusCode)
+        => statusCode == HttpStatusCode.TooManyRequests || (int)statusCode >= 500;
+
+    public record OpenAIError(int? StatusCode, string Message);
 }
