@@ -1,3 +1,4 @@
+using System;
 using SpecialGuide.Core.Models;
 using System.Runtime.InteropServices;
 
@@ -12,10 +13,23 @@ public class OverlayService
         _menu = menu;
     }
 
+    public event EventHandler? Canceled
+    {
+        add => _menu.Canceled += value;
+        remove => _menu.Canceled -= value;
+    }
+
     public void ShowAtCursor(string[] suggestions)
     {
         var pos = GetCursorPosition();
         _menu.Populate(suggestions);
+        _menu.Show(pos.X, pos.Y);
+    }
+
+    public void ShowLoadingAtCursor()
+    {
+        var pos = GetCursorPosition();
+        _menu.ShowLoading();
         _menu.Show(pos.X, pos.Y);
     }
 
