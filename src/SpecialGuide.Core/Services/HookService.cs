@@ -1,15 +1,11 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Windows.Forms;
 
 namespace SpecialGuide.Core.Services;
 
 public class HookService : IDisposable
 {
-    private IntPtr _mouseHookId = IntPtr.Zero;
-    private IntPtr _keyboardHookId = IntPtr.Zero;
-    private HookProc? _mouseProc;
-    private HookProc? _keyboardProc;
-    private readonly SettingsService _settings;
     private bool _overlayVisible;
     private Modifiers _hotkeyModifiers;
     private uint _hotkeyKey;
@@ -18,43 +14,13 @@ public class HookService : IDisposable
     internal bool IsMouseHookActive => _mouseHookId != IntPtr.Zero;
     internal bool IsKeyboardHookActive => _keyboardHookId != IntPtr.Zero;
 
-    public event EventHandler? MiddleClick;
+    public event EventHandler? HotkeyPressed;
 
     public HookService(SettingsService settings)
-    {
-        _settings = settings;
+
     }
 
     public void Start() => Reload();
-
-    /// <summary>
-    /// Reloads the hook registration. Returns true if the configured hotkey was registered,
-    /// false if the service fell back to the middle mouse button.
-    /// </summary>
-    public bool Reload()
-    {
-        Stop();
-        var hotkey = _settings.Settings.ActivationHotkey;
-        if (!string.IsNullOrWhiteSpace(hotkey) &&
-            TryParseHotkey(hotkey, out _hotkeyModifiers, out _hotkeyKey, out var _))
-        {
-            _keyboardProc = KeyboardHookCallback;
-            _keyboardHookId = SetHook(WH_KEYBOARD_LL, _keyboardProc);
-            if (_keyboardHookId != IntPtr.Zero)
-            {
-                return true;
-            }
-            Warn($"Failed to register hotkey '{hotkey}', falling back to middle click.");
-        }
-
-        _mouseProc = MouseHookCallback;
-        _mouseHookId = SetHook(WH_MOUSE_LL, _mouseProc);
-        if (_mouseHookId == IntPtr.Zero)
-        {
-            Warn("Failed to register middle-click hook");
-        }
-        return false;
-    }
 
     public void Stop()
     {
@@ -70,28 +36,46 @@ public class HookService : IDisposable
         }
     }
 
+    private void Reload()
+    {
+        Stop();
+        var hotkeyString = _settings.Settings.Hotkey;
+        if (TryParseHotkey(hotkeyString, out var keys) && !IsReservedHotkey(keys))
+        {
+            _hotkey = keys;
+            _hookId = SetHook(KeyboardCallback, WH_KEYBOARD_LL);
+        }
+        else
+        {
+            _hotkey = Keys.None;
+            _hookId = SetHook(MouseCallback, WH_MOUSE_LL);
+        }
+        if (_hookId == IntPtr.Zero)
+        {
+            throw new InvalidOperationException("Failed to set Windows hook");
+        }
+    }
+
     public void SetOverlayVisible(bool visible) => _overlayVisible = visible;
 
     public void Dispose() => Stop();
+SetHook(HookProc proc, int idHook)
 
-    protected virtual IntPtr SetHook(int idHook, HookProc proc)
     {
         using var curProcess = Process.GetCurrentProcess();
         using var curModule = curProcess.MainModule!;
         return SetWindowsHookEx(idHook, proc, GetModuleHandle(curModule.ModuleName), 0);
     }
 
-    protected virtual bool Unhook(IntPtr hookId) => UnhookWindowsHookEx(hookId);
 
-    private IntPtr MouseHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
         const int WM_MBUTTONDOWN = 0x0207;
         if (nCode >= 0 && wParam == (IntPtr)WM_MBUTTONDOWN)
         {
-            MiddleClick?.Invoke(this, EventArgs.Empty);
+            HotkeyPressed?.Invoke(this, EventArgs.Empty);
             if (_overlayVisible)
             {
-                return new IntPtr(1); // suppress
+                return new IntPtr(1);
             }
         }
         return CallNextHookEx(_mouseHookId, nCode, wParam, lParam);
@@ -250,10 +234,9 @@ public class HookService : IDisposable
         Win = 8,
     }
 
-    protected delegate IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam);
 
-    internal const int WH_KEYBOARD_LL = 13;
-    internal const int WH_MOUSE_LL = 14;
+
+
 
     [DllImport("user32.dll")]
     private static extern IntPtr SetWindowsHookEx(int idHook, HookProc lpfn, IntPtr hMod, uint dwThreadId);
@@ -266,4 +249,7 @@ public class HookService : IDisposable
 
     [DllImport("kernel32.dll")]
     private static extern IntPtr GetModuleHandle(string lpModuleName);
+
+    [DllImport("user32.dll")]
+    private static extern short GetKeyState(int nVirtKey);
 }
