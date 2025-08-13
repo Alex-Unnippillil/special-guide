@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Polly;
 
 namespace SpecialGuide.Core.Services;
 
@@ -14,12 +15,17 @@ public class OpenAIService
     private readonly HttpClient _httpClient;
     private readonly SettingsService _settings;
     private readonly ILogger<OpenAIService> _logger;
+    private readonly IAsyncPolicy<HttpResponseMessage> _retryPolicy;
 
     public OpenAIService(HttpClient httpClient, SettingsService settings, ILogger<OpenAIService> logger)
     {
         _httpClient = httpClient;
         _settings = settings;
         _logger = logger;
+        _retryPolicy = Policy
+            .HandleResult<HttpResponseMessage>(r => r.StatusCode == HttpStatusCode.TooManyRequests || (int)r.StatusCode >= 500)
+            .WaitAndRetryAsync(2, attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt - 1)),
+                (outcome, _, _, _) => outcome.Result?.Dispose());
     }
 
     public virtual async Task<SuggestionResult> GenerateSuggestionsAsync(byte[] image, string appName)
@@ -77,17 +83,28 @@ public class OpenAIService
 
     public virtual async Task<string> TranscribeAsync(byte[] wav)
     {
-        var apiKey = _settings.ApiKey;
-        using var content = new MultipartFormDataContent();
-        content.Add(new ByteArrayContent(wav), "file", "audio.wav");
-        content.Add(new StringContent("whisper-1"), "model");
-        var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/audio/transcriptions");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        request.Content = content;
-        using var response = await SendAsync(request);
-        var json = await response.Content.ReadAsStringAsync();
-        using var doc = JsonDocument.Parse(json);
-        return doc.RootElement.GetProperty("text").GetString() ?? string.Empty;
+        var (response, error) = await SendWithRetryAsync(() =>
+        {
+            var apiKey = _settings.ApiKey;
+            var content = new MultipartFormDataContent();
+            content.Add(new ByteArrayContent(wav), "file", "audio.wav");
+            content.Add(new StringContent("whisper-1"), "model");
+            var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/audio/transcriptions");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+            request.Content = content;
+            return request;
+        });
+        if (error != null || response == null)
+        {
+            throw new HttpRequestException(error);
+        }
+
+        using (response)
+        {
+            var json = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.GetProperty("text").GetString() ?? string.Empty;
+        }
     }
 
     public async Task<string> ChatAsync(string prompt)
@@ -100,11 +117,18 @@ public class OpenAIService
                 new { role = "user", content = prompt }
             }
         };
-        using var request = CreateChatRequest(payload);
-        using var response = await SendAsync(request);
-        var json = await response.Content.ReadAsStringAsync();
-        using var doc = JsonDocument.Parse(json);
-        return doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? string.Empty;
+        var (response, error) = await SendWithRetryAsync(() => CreateChatRequest(payload));
+        if (error != null || response == null)
+        {
+            throw new HttpRequestException(error);
+        }
+
+        using (response)
+        {
+            var json = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? string.Empty;
+        }
     }
 
     private HttpRequestMessage CreateChatRequest(object payload)
@@ -116,62 +140,31 @@ public class OpenAIService
         return request;
     }
 
-    private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request)
-    {
-        var response = await _httpClient.SendAsync(request);
-        if (!response.IsSuccessStatusCode)
-        {
-            var body = await response.Content.ReadAsStringAsync();
-            var ex = new HttpRequestException($"OpenAI request failed with status code {response.StatusCode}: {body}");
-            _logger.LogError(ex, "OpenAI API call failed");
-            throw ex;
-        }
-        return response;
-    }
-
     private async Task<(HttpResponseMessage? Response, string? Error)> SendWithRetryAsync(Func<HttpRequestMessage> requestFactory)
     {
-        const int maxRetries = 3;
-        for (var attempt = 0; attempt < maxRetries; attempt++)
+        try
         {
-            try
+            var response = await _retryPolicy.ExecuteAsync(async () =>
             {
                 using var request = requestFactory();
-                var response = await _httpClient.SendAsync(request);
-                if (response.IsSuccessStatusCode)
-                {
-                    return (response, null);
-                }
+                return await _httpClient.SendAsync(request);
+            });
 
-                if (response.StatusCode == HttpStatusCode.TooManyRequests ||
-                    (int)response.StatusCode >= 500)
-                {
-                    response.Dispose();
-                    if (attempt < maxRetries - 1)
-                    {
-                        await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)));
-                        continue;
-                    }
-                }
-
-                var body = await response.Content.ReadAsStringAsync();
-                response.Dispose();
-                var error = $"OpenAI request failed with status code {response.StatusCode}: {body}";
-                _logger.LogError(error);
-                return (null, error);
-            }
-            catch (Exception ex)
+            if (response.IsSuccessStatusCode)
             {
-                if (attempt < maxRetries - 1)
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)));
-                    continue;
-                }
-                _logger.LogError(ex, "OpenAI API call failed");
-                return (null, ex.Message);
+                return (response, null);
             }
-        }
 
-        return (null, "Unknown error");
+            var body = await response.Content.ReadAsStringAsync();
+            response.Dispose();
+            var error = $"OpenAI request failed with status code {response.StatusCode}: {body}";
+            _logger.LogError(error);
+            return (null, error);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "OpenAI API call failed");
+            return (null, ex.Message);
+        }
     }
 }
