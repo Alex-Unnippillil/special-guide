@@ -1,20 +1,99 @@
 using System;
-using Microsoft.Extensions.Options;
+using System.IO;
+using System.Text.Json;
 using SpecialGuide.Core.Models;
 
 namespace SpecialGuide.Core.Services;
 
-public class SettingsService
+public class SettingsService : IDisposable
 {
-    private readonly IOptionsMonitor<Settings> _settings;
-    public Settings Settings => _settings.CurrentValue;
-    public string ApiKey => Settings.ApiKey;
+    private readonly string _path;
+    private readonly FileSystemWatcher? _watcher;
+    private Settings _settings;
+
+    public Settings Settings => _settings;
+    public string ApiKey => _settings.ApiKey;
 
     public event Action<Settings>? SettingsChanged;
 
-    public SettingsService(IOptionsMonitor<Settings> settings)
+    public SettingsService() : this(new Settings()) { }
+
+    public SettingsService(Settings defaults)
     {
-        _settings = settings;
-        _settings.OnChange(s => SettingsChanged?.Invoke(s));
+        _settings = defaults;
+        _path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SpecialGuide", "appsettings.json");
+        try
+        {
+            var dir = Path.GetDirectoryName(_path)!;
+            Directory.CreateDirectory(dir);
+            if (File.Exists(_path))
+            {
+                var json = File.ReadAllText(_path);
+                var loaded = JsonSerializer.Deserialize<Settings>(json);
+                if (loaded != null)
+                {
+                    _settings = loaded;
+                }
+            }
+            else
+            {
+                Save();
+            }
+
+            _watcher = new FileSystemWatcher(dir, Path.GetFileName(_path))
+            {
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.CreationTime | NotifyFilters.FileName
+            };
+            _watcher.Changed += (_, _) => Reload();
+            _watcher.Created += (_, _) => Reload();
+            _watcher.EnableRaisingEvents = true;
+        }
+        catch (Exception ex)
+        {
+            Warn($"Failed to initialize settings file: {ex.Message}");
+        }
+    }
+
+    private void Reload()
+    {
+        try
+        {
+            if (File.Exists(_path))
+            {
+                var json = File.ReadAllText(_path);
+                var loaded = JsonSerializer.Deserialize<Settings>(json);
+                if (loaded != null)
+                {
+                    _settings = loaded;
+                    SettingsChanged?.Invoke(_settings);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Warn($"Failed to read settings: {ex.Message}");
+        }
+    }
+
+    public void Save()
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(_settings, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(_path, json);
+            SettingsChanged?.Invoke(_settings);
+        }
+        catch (Exception ex)
+        {
+            Warn($"Failed to save settings: {ex.Message}");
+        }
+    }
+
+    private static void Warn(string message) => Console.Error.WriteLine(message);
+
+    public void Dispose()
+    {
+        _watcher?.Dispose();
     }
 }
+
