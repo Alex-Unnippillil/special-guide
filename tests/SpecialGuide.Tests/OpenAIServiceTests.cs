@@ -72,6 +72,24 @@ namespace SpecialGuide.Tests
             Assert.NotNull(result.Error);
         }
 
+        [Fact]
+        public async Task RateLimit_Exhausts_Retries()
+        {
+            var responses = new[]
+            {
+                new HttpResponseMessage((HttpStatusCode)429),
+                new HttpResponseMessage((HttpStatusCode)429),
+                new HttpResponseMessage((HttpStatusCode)429)
+            };
+            var handler = new SequenceHandler(responses);
+            var http = new HttpClient(handler);
+            var service = new OpenAIService(http, new SettingsService(new Settings()), new LoggingService());
+            var result = await service.GenerateSuggestionsAsync(Array.Empty<byte>(), "app");
+            Assert.Equal(3, handler.Calls);
+            Assert.Empty(result.Suggestions);
+            Assert.NotNull(result.Error);
+        }
+
         private class FakeHandler : HttpMessageHandler
         {
             private readonly string _response;
