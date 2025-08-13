@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Input;
 using SpecialGuide.Core.Services;
 
 namespace SpecialGuide.App;
@@ -16,13 +17,34 @@ public partial class SettingsWindow : Window
         DataContext = _settings.Settings;
     }
 
+    private void OnHotkeyKeyDown(object sender, KeyEventArgs e)
+    {
+        e.Handled = true;
+        var key = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (key == Key.Escape)
+        {
+            HotkeyBox.Text = string.Empty;
+            _settings.Settings.Hotkey = string.Empty;
+            return;
+        }
+        var hotkey = string.Empty;
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) hotkey += "Control+";
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) hotkey += "Shift+";
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Alt)) hotkey += "Alt+";
+        hotkey += key.ToString();
+        HotkeyBox.Text = hotkey;
+        _settings.Settings.Hotkey = hotkey;
+    }
+
     private void OnSave(object sender, RoutedEventArgs e)
     {
-        _settings.Save();
-        _hookService.Start();
-        if (_hookService.UsingFallback && !string.IsNullOrWhiteSpace(_settings.Settings.ActivationHotkey))
+        if (!HookService.TryParseHotkey(_settings.Settings.Hotkey, out var parsed) || HookService.IsReservedHotkey(parsed))
         {
-            MessageBox.Show("Failed to register hotkey. Using middle-click fallback.", "Hotkey", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show("Hotkey is reserved or invalid. Falling back to middle click.", "Invalid hotkey", MessageBoxButton.OK, MessageBoxImage.Warning);
+            _settings.Settings.Hotkey = string.Empty;
+        }
+        _settings.Save();
+
         }
         Close();
     }
