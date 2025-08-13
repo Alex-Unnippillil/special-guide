@@ -1,5 +1,7 @@
+using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using SpecialGuide.Core.Models;
 using SpecialGuide.Core.Services;
@@ -22,6 +24,23 @@ public partial class RadialMenuWindow : Window, IRadialMenu
         _audioService = audioService;
         _openAIService = openAIService;
         MicButton.Click += OnMicClicked;
+        CancelButton.Click += (_, _) => { CancelRequested?.Invoke(this, EventArgs.Empty); Hide(); };
+    }
+    
+    public event EventHandler? CancelRequested;
+
+    public void ShowLoading()
+    {
+        RootCanvas.Children.Clear();
+        var radius = 80d;
+        RootCanvas.Children.Add(Spinner);
+        RootCanvas.Children.Add(CancelButton);
+        Canvas.SetLeft(Spinner, radius - Spinner.Width / 2);
+        Canvas.SetTop(Spinner, radius - Spinner.Height / 2);
+        Canvas.SetLeft(CancelButton, radius - CancelButton.Width / 2);
+        Canvas.SetTop(CancelButton, radius + 20);
+        Spinner.Visibility = Visibility.Visible;
+        CancelButton.Visibility = Visibility.Visible;
     }
 
     public void Populate(string[] suggestions)
@@ -30,6 +49,8 @@ public partial class RadialMenuWindow : Window, IRadialMenu
         _recording = false;
         MicButton.Content = "🎤";
         MicButton.ClearValue(Control.BackgroundProperty);
+        Spinner.Visibility = Visibility.Collapsed;
+        CancelButton.Visibility = Visibility.Collapsed;
         var count = suggestions.Length;
         var radius = 80d;
         RootCanvas.Children.Add(MicButton);
@@ -115,5 +136,17 @@ public partial class RadialMenuWindow : Window, IRadialMenu
     {
         base.OnDeactivated(e);
         Hide();
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            CancelRequested?.Invoke(this, EventArgs.Empty);
+            e.Handled = true;
+            Hide();
+            return;
+        }
+        base.OnKeyDown(e);
     }
 }

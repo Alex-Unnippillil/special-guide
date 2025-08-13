@@ -1,3 +1,5 @@
+using System;
+using System.Threading;
 using System.Windows;
 using Microsoft.Extensions.Logging;
 using SpecialGuide.Core.Services;
@@ -11,6 +13,8 @@ public partial class MainWindow : Window
     private readonly SuggestionService _suggestionService;
     private readonly WindowService _windowService;
     private readonly ILogger<MainWindow> _logger;
+    private bool _busy;
+    private CancellationTokenSource? _cts;
     public MainWindow(HookService hookService, OverlayService overlayService, SuggestionService suggestionService, WindowService windowService, ILogger<MainWindow> logger)
     {
         InitializeComponent();
@@ -19,25 +23,54 @@ public partial class MainWindow : Window
         _suggestionService = suggestionService;
         _windowService = windowService;
         _logger = logger;
-        _hookService.MiddleClick += async (sender, e) =>
+
         {
             try
             {
-                await OnMiddleClick(sender, e);
+                await OnHotkeyPressed(sender, e);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error handling middle click");
+                _logger.LogError(ex, "Error handling hotkey");
             }
         };
         _hookService.Start();
         Closed += (_, _) => _hookService.Stop();
     }
 
-    private async Task OnMiddleClick(object? sender, EventArgs e)
+    private async Task OnHotkeyPressed(object? sender, EventArgs e)
     {
-        var app = _windowService.GetActiveProcessName();
-        var suggestions = await _suggestionService.GetSuggestionsAsync(app);
-        _overlayService.ShowAtCursor(suggestions);
+        if (_busy) return;
+        _busy = true;
+        _cts = new CancellationTokenSource();
+        _overlayService.ShowLoadingAtCursor();
+        try
+        {
+            var app = _windowService.GetActiveProcessName();
+            var result = await _suggestionService.GetSuggestionsAsync(app, _cts.Token);
+            if (result.Error != null)
+            {
+                MessageBox.Show(result.Error, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                _overlayService.Hide();
+            }
+            else
+            {
+                _overlayService.ShowSuggestions(result.Suggestions);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _overlayService.Hide();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void CancelActive()
+    {
+        if (!_busy) return;
+        _cts?.Cancel();
     }
 }
