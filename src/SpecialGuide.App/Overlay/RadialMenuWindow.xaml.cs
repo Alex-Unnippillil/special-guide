@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using SpecialGuide.Core.Models;
 using SpecialGuide.Core.Services;
 
@@ -9,19 +10,31 @@ public partial class RadialMenuWindow : Window, IRadialMenu
 {
     private readonly ClipboardService _clipboardService;
     private readonly HookService _hookService;
+    private readonly AudioService _audioService;
+    private readonly OpenAIService _openAIService;
+    private bool _recording;
 
-    public RadialMenuWindow(ClipboardService clipboardService, HookService hookService)
+    public RadialMenuWindow(ClipboardService clipboardService, HookService hookService, AudioService audioService, OpenAIService openAIService)
     {
         InitializeComponent();
         _clipboardService = clipboardService;
         _hookService = hookService;
+        _audioService = audioService;
+        _openAIService = openAIService;
+        MicButton.Click += OnMicClicked;
     }
 
     public void Populate(string[] suggestions)
     {
         RootCanvas.Children.Clear();
+        _recording = false;
+        MicButton.Content = "🎤";
+        MicButton.ClearValue(Control.BackgroundProperty);
         var count = suggestions.Length;
         var radius = 80d;
+        RootCanvas.Children.Add(MicButton);
+        Canvas.SetLeft(MicButton, radius - MicButton.Width / 2);
+        Canvas.SetTop(MicButton, radius - MicButton.Height / 2);
         for (int i = 0; i < count; i++)
         {
             var angle = 2 * Math.PI * i / count;
@@ -48,8 +61,15 @@ public partial class RadialMenuWindow : Window, IRadialMenu
         Activate();
     }
 
-    public void Hide()
+    public new void Hide()
     {
+        if (_recording)
+        {
+            _audioService.Stop();
+            _recording = false;
+            MicButton.Content = "🎤";
+            MicButton.ClearValue(Control.BackgroundProperty);
+        }
         base.Hide();
         _hookService.SetOverlayVisible(false);
     }
@@ -58,6 +78,37 @@ public partial class RadialMenuWindow : Window, IRadialMenu
     {
         _clipboardService.SetText(text);
         Hide();
+    }
+
+    private async void OnMicClicked(object sender, RoutedEventArgs e)
+    {
+        if (_recording)
+        {
+            var data = _audioService.Stop();
+            _recording = false;
+            MicButton.Content = "🎤";
+            MicButton.ClearValue(Control.BackgroundProperty);
+            try
+            {
+                var text = await _openAIService.TranscribeAsync(data);
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    _clipboardService.SetText(text);
+                }
+            }
+            catch
+            {
+                MessageBox.Show("Transcription failed", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            Hide();
+        }
+        else
+        {
+            _audioService.Start();
+            _recording = true;
+            MicButton.Content = "■";
+            MicButton.Background = Brushes.Red;
+        }
     }
 
     protected override void OnDeactivated(EventArgs e)
