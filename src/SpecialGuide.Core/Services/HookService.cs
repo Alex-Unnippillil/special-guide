@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
@@ -5,38 +6,33 @@ namespace SpecialGuide.Core.Services;
 
 public class HookService : IDisposable
 {
-    private readonly SettingsService _settings;
-    private IntPtr _hookId = IntPtr.Zero;
-    private HookProc? _proc;
-    private Keys _hotkey = Keys.None;
     private bool _overlayVisible;
+    private Modifiers _hotkeyModifiers;
+    private uint _hotkeyKey;
+    private Modifiers _currentModifiers;
+
+    internal bool IsMouseHookActive => _mouseHookId != IntPtr.Zero;
+    internal bool IsKeyboardHookActive => _keyboardHookId != IntPtr.Zero;
 
     public event EventHandler? HotkeyPressed;
 
     public HookService(SettingsService settings)
-    {
-        _settings = settings;
-        _settings.SettingsChanged += _ =>
-        {
-            try
-            {
-                Reload();
-            }
-            catch
-            {
-                // ignore reload failures
-            }
-        };
+
     }
 
     public void Start() => Reload();
 
     public void Stop()
     {
-        if (_hookId != IntPtr.Zero)
+        if (_keyboardHookId != IntPtr.Zero)
         {
-            UnhookWindowsHookEx(_hookId);
-            _hookId = IntPtr.Zero;
+            Unhook(_keyboardHookId);
+            _keyboardHookId = IntPtr.Zero;
+        }
+        if (_mouseHookId != IntPtr.Zero)
+        {
+            Unhook(_mouseHookId);
+            _mouseHookId = IntPtr.Zero;
         }
     }
 
@@ -63,16 +59,15 @@ public class HookService : IDisposable
     public void SetOverlayVisible(bool visible) => _overlayVisible = visible;
 
     public void Dispose() => Stop();
+SetHook(HookProc proc, int idHook)
 
-    private IntPtr SetHook(HookProc proc, int idHook)
     {
-        _proc = proc;
-        using var curProcess = System.Diagnostics.Process.GetCurrentProcess();
+        using var curProcess = Process.GetCurrentProcess();
         using var curModule = curProcess.MainModule!;
         return SetWindowsHookEx(idHook, proc, GetModuleHandle(curModule.ModuleName), 0);
     }
 
-    private IntPtr MouseCallback(int nCode, IntPtr wParam, IntPtr lParam)
+
     {
         const int WM_MBUTTONDOWN = 0x0207;
         if (nCode >= 0 && wParam == (IntPtr)WM_MBUTTONDOWN)
@@ -83,79 +78,165 @@ public class HookService : IDisposable
                 return new IntPtr(1);
             }
         }
-        return CallNextHookEx(_hookId, nCode, wParam, lParam);
+        return CallNextHookEx(_mouseHookId, nCode, wParam, lParam);
     }
 
-    private IntPtr KeyboardCallback(int nCode, IntPtr wParam, IntPtr lParam)
+    private IntPtr KeyboardHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
         const int WM_KEYDOWN = 0x0100;
-        if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN)
+        const int WM_KEYUP = 0x0101;
+        const int WM_SYSKEYDOWN = 0x0104;
+        const int WM_SYSKEYUP = 0x0105;
+        if (nCode >= 0)
         {
-            var kb = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
-            if (kb.HasValue)
+            var data = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
+            switch ((int)wParam)
             {
-                var key = (Keys)kb.Value.vkCode;
-                var mods = Keys.None;
-                if (IsKeyPressed(VK_CONTROL)) mods |= Keys.Control;
-                if (IsKeyPressed(VK_SHIFT)) mods |= Keys.Shift;
-                if (IsKeyPressed(VK_MENU)) mods |= Keys.Alt;
-                var current = mods | key;
-                if (current == _hotkey)
-                {
-                    HotkeyPressed?.Invoke(this, EventArgs.Empty);
-                    if (_overlayVisible)
+                case WM_KEYDOWN:
+                case WM_SYSKEYDOWN:
+                    UpdateModifiers((int)data.vkCode, true);
+                    if (data.vkCode == _hotkeyKey && _currentModifiers == _hotkeyModifiers)
                     {
-                        return new IntPtr(1);
+                        MiddleClick?.Invoke(this, EventArgs.Empty);
+                        if (_overlayVisible)
+                        {
+                            return new IntPtr(1);
+                        }
                     }
-                }
+                    break;
+                case WM_KEYUP:
+                case WM_SYSKEYUP:
+                    UpdateModifiers((int)data.vkCode, false);
+                    break;
             }
         }
-        return CallNextHookEx(_hookId, nCode, wParam, lParam);
+        return CallNextHookEx(_keyboardHookId, nCode, wParam, lParam);
     }
 
-    public static bool TryParseHotkey(string? hotkey, out Keys result)
+    private void UpdateModifiers(int vkCode, bool down)
     {
-        result = Keys.None;
-        if (string.IsNullOrWhiteSpace(hotkey))
+        void Set(ref Modifiers mods, Modifiers flag, bool value)
+        {
+            if (value) mods |= flag;
+            else mods &= ~flag;
+        }
+
+        switch (vkCode)
+        {
+            case 0x10: // SHIFT
+            case 0xA0:
+            case 0xA1:
+                Set(ref _currentModifiers, Modifiers.Shift, down);
+                break;
+            case 0x11: // CTRL
+            case 0xA2:
+            case 0xA3:
+                Set(ref _currentModifiers, Modifiers.Control, down);
+                break;
+            case 0x12: // ALT
+            case 0xA4:
+            case 0xA5:
+                Set(ref _currentModifiers, Modifiers.Alt, down);
+                break;
+            case 0x5B: // LWIN
+            case 0x5C: // RWIN
+                Set(ref _currentModifiers, Modifiers.Win, down);
+                break;
+        }
+    }
+
+    private static bool TryParseHotkey(string hotkey, out Modifiers modifiers, out uint key, out string? error)
+    {
+        modifiers = Modifiers.None;
+        key = 0;
+        error = null;
+        var parts = hotkey.Split('+', StringSplitOptions.RemoveEmptyEntries);
+        bool keySet = false;
+        foreach (var part in parts)
+        {
+            var token = part.Trim().ToUpperInvariant();
+            switch (token)
+            {
+                case "CTRL":
+                case "CONTROL":
+                    if (modifiers.HasFlag(Modifiers.Control)) { error = "Duplicate modifier"; return false; }
+                    modifiers |= Modifiers.Control;
+                    break;
+                case "ALT":
+                    if (modifiers.HasFlag(Modifiers.Alt)) { error = "Duplicate modifier"; return false; }
+                    modifiers |= Modifiers.Alt;
+                    break;
+                case "SHIFT":
+                    if (modifiers.HasFlag(Modifiers.Shift)) { error = "Duplicate modifier"; return false; }
+                    modifiers |= Modifiers.Shift;
+                    break;
+                case "WIN":
+                case "WINDOWS":
+                case "META":
+                    if (modifiers.HasFlag(Modifiers.Win)) { error = "Duplicate modifier"; return false; }
+                    modifiers |= Modifiers.Win;
+                    break;
+                default:
+                    if (keySet) { error = "Multiple keys"; return false; }
+                    if (token.Length == 1)
+                    {
+                        key = (uint)token[0];
+                    }
+                    else if (token.StartsWith("F") && int.TryParse(token.Substring(1), out var fn) && fn >= 1 && fn <= 12)
+                    {
+                        key = (uint)(0x70 + fn - 1);
+                    }
+                    else if (token == "DELETE")
+                    {
+                        key = 0x2E;
+                    }
+                    else
+                    {
+                        error = $"Unknown key '{part}'";
+                        return false;
+                    }
+                    keySet = true;
+                    break;
+            }
+        }
+        if (!keySet)
+        {
+            error = "No key specified";
             return false;
-        var formatted = hotkey.Replace('+', ',');
-        if (!Enum.TryParse(formatted, true, out result))
+        }
+        if (modifiers == (Modifiers.Control | Modifiers.Alt) && key == 0x2E)
+        {
+            error = "Reserved combination";
             return false;
-        var key = result & Keys.KeyCode;
-        if (key == Keys.None || key == Keys.ControlKey || key == Keys.ShiftKey || key == Keys.Menu)
-            return false;
+        }
         return true;
     }
 
-    private static readonly Keys[] ReservedHotkeys =
-    {
-        Keys.Alt | Keys.Tab,
-        Keys.Alt | Keys.F4,
-        Keys.Control | Keys.Alt | Keys.Delete,
-        Keys.Control | Keys.Shift | Keys.Escape
-    };
-
-    public static bool IsReservedHotkey(Keys hotkey) => Array.IndexOf(ReservedHotkeys, hotkey) >= 0;
-
-    private static bool IsKeyPressed(int key) => (GetKeyState(key) & 0x8000) != 0;
-
-    private delegate IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam);
-
-    private const int WH_MOUSE_LL = 14;
-    private const int WH_KEYBOARD_LL = 13;
-    private const int VK_SHIFT = 0x10;
-    private const int VK_CONTROL = 0x11;
-    private const int VK_MENU = 0x12;
+    private static void Warn(string message) => Console.Error.WriteLine(message);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct KBDLLHOOKSTRUCT
     {
-        public int vkCode;
-        public int scanCode;
-        public int flags;
-        public int time;
+        public uint vkCode;
+        public uint scanCode;
+        public uint flags;
+        public uint time;
         public IntPtr dwExtraInfo;
     }
+
+    [Flags]
+    private enum Modifiers
+    {
+        None = 0,
+        Control = 1,
+        Alt = 2,
+        Shift = 4,
+        Win = 8,
+    }
+
+
+
+
 
     [DllImport("user32.dll")]
     private static extern IntPtr SetWindowsHookEx(int idHook, HookProc lpfn, IntPtr hMod, uint dwThreadId);

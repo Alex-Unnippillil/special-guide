@@ -1,5 +1,6 @@
 using SpecialGuide.Core.Models;
 using SpecialGuide.Core.Services;
+using SpecialGuide.Core.Models;
 using Xunit;
 
 namespace SpecialGuide.Tests;
@@ -7,23 +8,29 @@ namespace SpecialGuide.Tests;
 public class HookServiceTests
 {
     [Fact]
-    public void StartStop_Repeated_Cycles_Safe()
+    public void Registers_Keyboard_Hook_When_Hotkey_Configured()
     {
-        using var settings = new SettingsService(new Settings());
-        var service = new HookService(settings);
-        if (!OperatingSystem.IsWindows())
+
         {
-            Assert.Throws<DllNotFoundException>(() => service.Start());
-            return;
+            if (idHook == WH_KEYBOARD_LL)
+            {
+                if (KeyboardShouldFail) return IntPtr.Zero;
+                KeyboardHookCount++;
+                return new IntPtr(1);
+            }
+            else if (idHook == WH_MOUSE_LL)
+            {
+                MouseHookCount++;
+                return new IntPtr(2);
+            }
+            return IntPtr.Zero;
         }
 
-        for (int i = 0; i < 3; i++)
+        protected override bool Unhook(IntPtr hookId)
         {
-            service.Start();
-            service.Stop();
+            if (hookId == new IntPtr(1)) KeyboardHookCount--;
+            if (hookId == new IntPtr(2)) MouseHookCount--;
+            return true;
         }
-
-        var field = typeof(HookService).GetField("_hookId", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        Assert.Equal(IntPtr.Zero, (IntPtr)field!.GetValue(service)!);
     }
 }
