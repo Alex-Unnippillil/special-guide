@@ -1,4 +1,5 @@
 using SpecialGuide.Core.Services;
+using SpecialGuide.Core.Models;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -30,6 +31,7 @@ public class SuggestionServiceTests
 
     private class FakeCaptureService : CaptureService
     {
+        public FakeCaptureService() : base(new SettingsService(new Settings())) { }
         public override byte[] CaptureScreen() => Array.Empty<byte>();
     }
 
@@ -45,22 +47,12 @@ public class SuggestionServiceTests
 
 namespace SpecialGuide.Core.Services
 {
+    using SpecialGuide.Core.Models;
+
     public class SettingsService
     {
         public Settings Settings { get; }
         public string ApiKey => Settings.ApiKey;
         public SettingsService(Settings settings) => Settings = settings;
-    }
-
-    public class Settings
-    {
-        public int MaxSuggestionLength { get; set; } = SuggestionService.DefaultMaxSuggestionLength;
-        public string ApiKey { get; set; } = string.Empty;
-    }
-
-    public class CaptureService
-    {
-        public virtual byte[] CaptureScreen() => Array.Empty<byte>();
-
     }
 }

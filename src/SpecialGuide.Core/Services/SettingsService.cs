@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using SpecialGuide.Core.Models;
 
 namespace SpecialGuide.Core.Services;
@@ -29,7 +30,7 @@ public class SettingsService : IDisposable
             if (File.Exists(_path))
             {
                 var json = File.ReadAllText(_path);
-                var loaded = JsonSerializer.Deserialize<Settings>(json);
+                var loaded = JsonSerializer.Deserialize<Settings>(json, CreateOptions());
                 if (loaded != null)
                 {
                     _settings = loaded;
@@ -61,7 +62,7 @@ public class SettingsService : IDisposable
             if (File.Exists(_path))
             {
                 var json = File.ReadAllText(_path);
-                var loaded = JsonSerializer.Deserialize<Settings>(json);
+                var loaded = JsonSerializer.Deserialize<Settings>(json, CreateOptions());
                 if (loaded != null)
                 {
                     _settings = loaded;
@@ -79,7 +80,7 @@ public class SettingsService : IDisposable
     {
         try
         {
-            var json = JsonSerializer.Serialize(_settings, new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(_settings, CreateOptions());
             File.WriteAllText(_path, json);
             SettingsChanged?.Invoke(_settings);
         }
@@ -88,6 +89,13 @@ public class SettingsService : IDisposable
             Warn($"Failed to save settings: {ex.Message}");
         }
     }
+
+    private static JsonSerializerOptions CreateOptions()
+        => new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            Converters = { new JsonStringEnumConverter() }
+        };
 
     private static void Warn(string message) => Console.Error.WriteLine(message);
 

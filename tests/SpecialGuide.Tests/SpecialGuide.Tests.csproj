@@ -20,14 +20,17 @@
     </PackageReference>
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+    <PackageReference Include="System.Drawing.Common" Version="8.0.4" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AudioServiceTests.cs" />
+    <Compile Include="CaptureServiceTests.cs" />
     <Compile Include="SuggestionServiceTests.cs" />
     <Compile Include="OpenAIServiceTests.cs" />
     <Compile Include="..\..\src\SpecialGuide.Core\Services\AudioService.cs" Link="Services/AudioService.cs" />
     <Compile Include="..\..\src\SpecialGuide.Core\Services\SuggestionService.cs" Link="Services/SuggestionService.cs" />
     <Compile Include="..\..\src\SpecialGuide.Core\Services\OpenAIService.cs" Link="Services/OpenAIService.cs" />
-
+    <Compile Include="..\..\src\SpecialGuide.Core\Services\CaptureService.cs" Link="Services/CaptureService.cs" />
+    <Compile Include="..\..\src\SpecialGuide.Core\Models\Settings.cs" Link="Models/Settings.cs" />
   </ItemGroup>
 </Project>
