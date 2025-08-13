@@ -2,9 +2,11 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        ShowInTaskbar="False" Topmost="True" SizeToContent="WidthAndHeight">
+        ShowInTaskbar="False" Topmost="True" SizeToContent="WidthAndHeight" Focusable="True">
     <Canvas x:Name="RootCanvas" Width="200" Height="200">
         <Button x:Name="MicButton" Content="🎤" Width="40" Height="40"/>
+        <ProgressBar x:Name="Spinner" Width="60" Height="10" IsIndeterminate="True" Visibility="Collapsed"/>
+        <Button x:Name="CancelButton" Content="✖" Width="30" Height="30" Visibility="Collapsed"/>
         <!-- Items added dynamically -->
     </Canvas>
 </Window>
