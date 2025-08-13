@@ -1,6 +1,9 @@
+using System.Drawing;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using Forms = System.Windows.Forms;
 using SpecialGuide.Core.Models;
 using SpecialGuide.Core.Services;
 
@@ -98,7 +101,7 @@ public partial class RadialMenuWindow : Window, IRadialMenu
             }
             catch
             {
-                MessageBox.Show("Transcription failed", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowToast("Transcription failed");
             }
             Hide();
         }
@@ -115,5 +118,16 @@ public partial class RadialMenuWindow : Window, IRadialMenu
     {
         base.OnDeactivated(e);
         Hide();
+    }
+
+    private static void ShowToast(string message)
+    {
+        var icon = new Forms.NotifyIcon
+        {
+            Icon = SystemIcons.Application,
+            Visible = true
+        };
+        icon.ShowBalloonTip(3000, "SpecialGuide", message, Forms.ToolTipIcon.Error);
+        _ = Task.Delay(4000).ContinueWith(_ => icon.Dispose());
     }
 }
