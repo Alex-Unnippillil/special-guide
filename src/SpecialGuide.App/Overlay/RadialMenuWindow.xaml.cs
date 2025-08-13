@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using SpecialGuide.Core.Models;
 using SpecialGuide.Core.Services;
@@ -13,6 +14,7 @@ public partial class RadialMenuWindow : Window, IRadialMenu
     private readonly AudioService _audioService;
     private readonly OpenAIService _openAIService;
     private bool _recording;
+    public event EventHandler? CancelRequested;
 
     public RadialMenuWindow(ClipboardService clipboardService, HookService hookService, AudioService audioService, OpenAIService openAIService)
     {
@@ -22,6 +24,7 @@ public partial class RadialMenuWindow : Window, IRadialMenu
         _audioService = audioService;
         _openAIService = openAIService;
         MicButton.Click += OnMicClicked;
+        PreviewKeyDown += OnPreviewKeyDown;
     }
 
     public void Populate(string[] suggestions)
@@ -30,6 +33,16 @@ public partial class RadialMenuWindow : Window, IRadialMenu
         _recording = false;
         MicButton.Content = "🎤";
         MicButton.ClearValue(Control.BackgroundProperty);
+        if (suggestions.Length == 0)
+        {
+            RootCanvas.Visibility = Visibility.Collapsed;
+            LoadingBar.Visibility = Visibility.Visible;
+            return;
+        }
+
+        LoadingBar.Visibility = Visibility.Collapsed;
+        RootCanvas.Visibility = Visibility.Visible;
+
         var count = suggestions.Length;
         var radius = 80d;
         RootCanvas.Children.Add(MicButton);
@@ -70,6 +83,8 @@ public partial class RadialMenuWindow : Window, IRadialMenu
             MicButton.Content = "🎤";
             MicButton.ClearValue(Control.BackgroundProperty);
         }
+        LoadingBar.Visibility = Visibility.Collapsed;
+        RootCanvas.Visibility = Visibility.Visible;
         base.Hide();
         _hookService.SetOverlayVisible(false);
     }
@@ -115,5 +130,14 @@ public partial class RadialMenuWindow : Window, IRadialMenu
     {
         base.OnDeactivated(e);
         Hide();
+    }
+
+    private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            CancelRequested?.Invoke(this, EventArgs.Empty);
+            e.Handled = true;
+        }
     }
 }

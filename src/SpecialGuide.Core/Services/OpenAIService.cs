@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 
 namespace SpecialGuide.Core.Services;
@@ -22,7 +23,7 @@ public class OpenAIService
         _logger = logger;
     }
 
-    public virtual async Task<SuggestionResult> GenerateSuggestionsAsync(byte[] image, string appName)
+    public virtual async Task<SuggestionResult> GenerateSuggestionsAsync(byte[] image, string appName, CancellationToken cancellationToken = default)
     {
         var base64 = Convert.ToBase64String(image);
         var imageUrl = "data:image/png;base64," + base64;
@@ -48,7 +49,7 @@ public class OpenAIService
                 }
             }
         };
-        var (response, error) = await SendWithRetryAsync(() => CreateChatRequest(payload));
+        var (response, error) = await SendWithRetryAsync(() => CreateChatRequest(payload), cancellationToken);
         if (error != null || response == null)
         {
             return new SuggestionResult(Array.Empty<string>(), error);
@@ -116,9 +117,9 @@ public class OpenAIService
         return request;
     }
 
-    private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request)
+    private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.SendAsync(request);
+        var response = await _httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             var body = await response.Content.ReadAsStringAsync();
@@ -129,7 +130,7 @@ public class OpenAIService
         return response;
     }
 
-    private async Task<(HttpResponseMessage? Response, string? Error)> SendWithRetryAsync(Func<HttpRequestMessage> requestFactory)
+    private async Task<(HttpResponseMessage? Response, string? Error)> SendWithRetryAsync(Func<HttpRequestMessage> requestFactory, CancellationToken cancellationToken)
     {
         const int maxRetries = 3;
         for (var attempt = 0; attempt < maxRetries; attempt++)
@@ -137,7 +138,7 @@ public class OpenAIService
             try
             {
                 using var request = requestFactory();
-                var response = await _httpClient.SendAsync(request);
+                var response = await _httpClient.SendAsync(request, cancellationToken);
                 if (response.IsSuccessStatusCode)
                 {
                     return (response, null);
@@ -149,7 +150,7 @@ public class OpenAIService
                     response.Dispose();
                     if (attempt < maxRetries - 1)
                     {
-                        await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)));
+                        await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)), cancellationToken);
                         continue;
                     }
                 }
@@ -164,7 +165,7 @@ public class OpenAIService
             {
                 if (attempt < maxRetries - 1)
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)));
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)), cancellationToken);
                     continue;
                 }
                 _logger.LogError(ex, "OpenAI API call failed");
