@@ -1,13 +1,14 @@
 <Window x:Class="SpecialGuide.App.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Settings" Height="220" Width="300">
+        Title="Settings" Height="260" Width="300">
     <StackPanel Margin="10">
         <TextBlock Text="API Key" />
         <TextBox Text="{Binding ApiKey}" Margin="0,0,0,10" />
         <CheckBox Content="Auto Paste" IsChecked="{Binding AutoPaste}" Margin="0,0,0,10" />
         <TextBlock Text="Max Suggestion Length" />
         <TextBox Text="{Binding MaxSuggestionLength}" Margin="0,0,0,10" />
+
         <Button Content="Save" HorizontalAlignment="Right" Width="80" Click="OnSave" />
     </StackPanel>
 </Window>
