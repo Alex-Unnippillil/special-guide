@@ -12,11 +12,23 @@ public class OverlayService
         _menu = menu;
     }
 
+    public event EventHandler? Cancelled
+    {
+        add => _menu.Cancelled += value;
+        remove => _menu.Cancelled -= value;
+    }
+
     public void ShowAtCursor(string[] suggestions)
     {
         var pos = GetCursorPosition();
         _menu.Populate(suggestions);
         _menu.Show(pos.X, pos.Y);
+    }
+
+    public void ShowLoadingAtCursor()
+    {
+        var pos = GetCursorPosition();
+        _menu.ShowLoading(pos.X, pos.Y);
     }
 
     public void Hide() => _menu.Hide();

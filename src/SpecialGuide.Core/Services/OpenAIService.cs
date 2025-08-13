@@ -19,7 +19,7 @@ public class OpenAIService
         _logger = logger;
     }
 
-    public virtual async Task<string[]> GenerateSuggestionsAsync(byte[] image, string appName)
+    public virtual async Task<string[]> GenerateSuggestionsAsync(byte[] image, string appName, CancellationToken cancellationToken = default)
     {
         var base64 = Convert.ToBase64String(image);
         var imageUrl = "data:image/png;base64," + base64;
@@ -46,7 +46,7 @@ public class OpenAIService
             }
         };
         using var request = CreateChatRequest(payload);
-        using var response = await SendAsync(request);
+        using var response = await SendAsync(request, cancellationToken);
         var json = await response.Content.ReadAsStringAsync();
         using var doc = JsonDocument.Parse(json);
         var content = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
@@ -96,9 +96,9 @@ public class OpenAIService
         return request;
     }
 
-    private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request)
+    private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.SendAsync(request);
+        var response = await _httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
             var body = await response.Content.ReadAsStringAsync();

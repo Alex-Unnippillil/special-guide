@@ -1,4 +1,6 @@
 using SpecialGuide.Core.Services;
+using Microsoft.Extensions.Logging.Abstractions;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -35,8 +37,8 @@ public class SuggestionServiceTests
 
     private class FakeOpenAIService : OpenAIService
     {
-        public FakeOpenAIService() : base(new HttpClient(), new SettingsService(new Settings()), new LoggingService()) { }
-        public override Task<string[]> GenerateSuggestionsAsync(byte[] image, string appName)
+        public FakeOpenAIService() : base(new HttpClient(), new SettingsService(new Settings()), NullLogger<OpenAIService>.Instance) { }
+        public override Task<string[]> GenerateSuggestionsAsync(byte[] image, string appName, CancellationToken cancellationToken = default)
             => Task.FromResult(new[] { new string('a', 100) });
     }
 }

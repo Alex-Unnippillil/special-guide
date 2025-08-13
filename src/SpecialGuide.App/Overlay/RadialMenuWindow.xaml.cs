@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using SpecialGuide.Core.Models;
 using SpecialGuide.Core.Services;
 
@@ -9,6 +10,8 @@ public partial class RadialMenuWindow : Window, IRadialMenu
 {
     private readonly ClipboardService _clipboardService;
     private readonly HookService _hookService;
+
+    public event EventHandler? Cancelled;
 
     public RadialMenuWindow(ClipboardService clipboardService, HookService hookService)
     {
@@ -37,6 +40,8 @@ public partial class RadialMenuWindow : Window, IRadialMenu
             button.Click += (_, _) => OnSuggestionSelected((string)button.Tag);
             RootCanvas.Children.Add(button);
         }
+        LoadingPanel.Visibility = Visibility.Collapsed;
+        RootCanvas.Visibility = Visibility.Visible;
     }
 
     public void Show(double x, double y)
@@ -48,16 +53,41 @@ public partial class RadialMenuWindow : Window, IRadialMenu
         Activate();
     }
 
+    public void ShowLoading(double x, double y)
+    {
+        LoadingPanel.Visibility = Visibility.Visible;
+        RootCanvas.Visibility = Visibility.Collapsed;
+        Left = x - Width / 2;
+        Top = y - Height / 2;
+        Show();
+        _hookService.SetOverlayVisible(true);
+        Activate();
+    }
+
     public void Hide()
     {
         base.Hide();
         _hookService.SetOverlayVisible(false);
+        LoadingPanel.Visibility = Visibility.Collapsed;
+        RootCanvas.Visibility = Visibility.Collapsed;
     }
 
     private void OnSuggestionSelected(string text)
     {
         _clipboardService.SetText(text);
         Hide();
+    }
+
+    protected override void OnPreviewKeyDown(KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            Cancelled?.Invoke(this, EventArgs.Empty);
+            e.Handled = true;
+            Hide();
+            return;
+        }
+        base.OnPreviewKeyDown(e);
     }
 
     protected override void OnDeactivated(EventArgs e)

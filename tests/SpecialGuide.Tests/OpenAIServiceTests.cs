@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using SpecialGuide.Core.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace SpecialGuide.Tests
@@ -15,7 +16,7 @@ namespace SpecialGuide.Tests
         {
             var handler = new FakeHandler("{\"choices\":[{\"message\":{\"content\":\"[\\\"one\\\",\\\"two\\\"]\"}}]}");
             var http = new HttpClient(handler);
-            var service = new OpenAIService(http, new SettingsService(new Settings()), new LoggingService());
+            var service = new OpenAIService(http, new SettingsService(new Settings()), NullLogger<OpenAIService>.Instance);
             var result = await service.GenerateSuggestionsAsync(Array.Empty<byte>(), "app");
             Assert.Equal(new[] { "one", "two" }, result);
         }
@@ -25,7 +26,7 @@ namespace SpecialGuide.Tests
         {
             var handler = new FakeHandler("{\"choices\":[{\"message\":{\"content\":\"not json\"}}]}");
             var http = new HttpClient(handler);
-            var service = new OpenAIService(http, new SettingsService(new Settings()), new LoggingService());
+            var service = new OpenAIService(http, new SettingsService(new Settings()), NullLogger<OpenAIService>.Instance);
             await Assert.ThrowsAsync<JsonException>(() => service.GenerateSuggestionsAsync(Array.Empty<byte>(), "app"));
         }
 
@@ -45,10 +46,3 @@ namespace SpecialGuide.Tests
     }
 }
 
-namespace SpecialGuide.Core.Services
-{
-    public class LoggingService
-    {
-        public void LogError(Exception ex, string message) { }
-    }
-}
