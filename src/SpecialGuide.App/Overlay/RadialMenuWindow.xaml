@@ -4,6 +4,7 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ShowInTaskbar="False" Topmost="True" SizeToContent="WidthAndHeight">
     <Canvas x:Name="RootCanvas" Width="200" Height="200">
+        <Button x:Name="MicButton" Content="🎤" Width="40" Height="40"/>
         <!-- Items added dynamically -->
     </Canvas>
 </Window>

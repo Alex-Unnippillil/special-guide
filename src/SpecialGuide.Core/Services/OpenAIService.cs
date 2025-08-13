@@ -55,7 +55,7 @@ public class OpenAIService
         return suggestions ?? Array.Empty<string>();
     }
 
-    public async Task<string> TranscribeAsync(byte[] wav)
+    public virtual async Task<string> TranscribeAsync(byte[] wav)
     {
         var apiKey = _settings.ApiKey;
         using var content = new MultipartFormDataContent();

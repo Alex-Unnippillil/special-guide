@@ -18,7 +18,7 @@ public class ClipboardService
 
     public void UpdateAutoPaste(bool autoPaste) => AutoPaste = autoPaste;
 
-    public void SetText(string text)
+    public virtual void SetText(string text)
     {
         Clipboard.SetText(text);
         if (AutoPaste)
