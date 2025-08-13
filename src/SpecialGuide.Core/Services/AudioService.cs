@@ -9,8 +9,11 @@ public class AudioService : IDisposable
     protected internal virtual MemoryStream? Stream { get; set; }
     protected internal virtual WaveFileWriter? Writer { get; set; }
 
+    public bool IsRecording { get; private set; }
+
     public void Start()
     {
+        if (IsRecording) return;
         _waveIn = new WaveInEvent();
         Stream = new MemoryStream();
         Writer = new WaveFileWriter(Stream, _waveIn.WaveFormat);
@@ -19,10 +22,13 @@ public class AudioService : IDisposable
         _waveIn.DataAvailable += _dataAvailableHandler;
 
         _waveIn.StartRecording();
+        IsRecording = true;
     }
 
     public byte[] Stop()
     {
+        if (!IsRecording) return Array.Empty<byte>();
+
         if (_waveIn != null && _dataAvailableHandler != null)
         {
             _waveIn.DataAvailable -= _dataAvailableHandler;
@@ -34,6 +40,7 @@ public class AudioService : IDisposable
         Writer?.Flush();
         var data = Stream?.ToArray() ?? Array.Empty<byte>();
         Dispose();
+        IsRecording = false;
         return data;
     }
 
@@ -51,5 +58,6 @@ public class AudioService : IDisposable
         Writer = null;
         Stream?.Dispose();
         Stream = null;
+        IsRecording = false;
     }
 }

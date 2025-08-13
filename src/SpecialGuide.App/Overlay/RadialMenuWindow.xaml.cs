@@ -1,7 +1,9 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using SpecialGuide.Core.Models;
 using SpecialGuide.Core.Services;
+using System.Threading.Tasks;
 
 namespace SpecialGuide.App.Overlay;
 
@@ -9,12 +11,17 @@ public partial class RadialMenuWindow : Window, IRadialMenu
 {
     private readonly ClipboardService _clipboardService;
     private readonly HookService _hookService;
+    private readonly AudioService _audioService;
+    private readonly OpenAIService _openAIService;
+    private Button? _micButton;
 
-    public RadialMenuWindow(ClipboardService clipboardService, HookService hookService)
+    public RadialMenuWindow(ClipboardService clipboardService, HookService hookService, AudioService audioService, OpenAIService openAIService)
     {
         InitializeComponent();
         _clipboardService = clipboardService;
         _hookService = hookService;
+        _audioService = audioService;
+        _openAIService = openAIService;
     }
 
     public void Populate(string[] suggestions)
@@ -37,6 +44,18 @@ public partial class RadialMenuWindow : Window, IRadialMenu
             button.Click += (_, _) => OnSuggestionSelected((string)button.Tag);
             RootCanvas.Children.Add(button);
         }
+
+        var micButton = new Button
+        {
+            Content = "🎤",
+            Width = 40,
+            Height = 40
+        };
+        Canvas.SetLeft(micButton, RootCanvas.Width / 2 - 20);
+        Canvas.SetTop(micButton, RootCanvas.Height / 2 - 20);
+        micButton.Click += async (s, e) => await ToggleRecordingAsync();
+        RootCanvas.Children.Add(micButton);
+        _micButton = micButton;
     }
 
     public void Show(double x, double y)
@@ -63,6 +82,51 @@ public partial class RadialMenuWindow : Window, IRadialMenu
     protected override void OnDeactivated(EventArgs e)
     {
         base.OnDeactivated(e);
+        if (_audioService.IsRecording)
+        {
+            _audioService.Stop();
+        }
         Hide();
+    }
+
+    private async Task ToggleRecordingAsync()
+    {
+        if (!_audioService.IsRecording)
+        {
+            _audioService.Start();
+            if (_micButton != null)
+            {
+                _micButton.Background = Brushes.Red;
+                _micButton.Content = "■";
+            }
+            return;
+        }
+
+        var data = _audioService.Stop();
+        if (_micButton != null)
+        {
+            _micButton.ClearValue(Button.BackgroundProperty);
+            _micButton.Content = "🎤";
+        }
+
+        if (data.Length == 0)
+        {
+            Hide();
+            return;
+        }
+
+        try
+        {
+            var text = await _openAIService.TranscribeAsync(data);
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                _clipboardService.SetText(text);
+            }
+            Hide();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Transcription failed: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 }
