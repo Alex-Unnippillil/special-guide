@@ -26,10 +26,6 @@ public class AudioService : IDisposable
 
     public byte[] Stop()
     {
-        if (!IsRecording)
-        {
-            return Array.Empty<byte>();
-        }
         if (_waveIn != null && _dataAvailableHandler != null)
         {
             _waveIn.DataAvailable -= _dataAvailableHandler;
@@ -41,7 +37,6 @@ public class AudioService : IDisposable
         Writer?.Flush();
         var data = Stream?.ToArray() ?? Array.Empty<byte>();
         Dispose();
-        IsRecording = false;
         return data;
     }
 
