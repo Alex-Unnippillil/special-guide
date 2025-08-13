@@ -1,3 +1,5 @@
+using System;
+
 namespace SpecialGuide.Core.Models;
 
 public interface IRadialMenu
@@ -5,4 +7,6 @@ public interface IRadialMenu
     void Populate(string[] suggestions);
     void Show(double x, double y);
     void Hide();
+    void ShowLoading();
+    event EventHandler? Canceled;
 }

@@ -1,6 +1,8 @@
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Input;
 using SpecialGuide.Core.Models;
 using SpecialGuide.Core.Services;
 
@@ -14,6 +16,8 @@ public partial class RadialMenuWindow : Window, IRadialMenu
     private readonly OpenAIService _openAIService;
     private bool _recording;
 
+    public event EventHandler? Canceled;
+
     public RadialMenuWindow(ClipboardService clipboardService, HookService hookService, AudioService audioService, OpenAIService openAIService)
     {
         InitializeComponent();
@@ -22,11 +26,14 @@ public partial class RadialMenuWindow : Window, IRadialMenu
         _audioService = audioService;
         _openAIService = openAIService;
         MicButton.Click += OnMicClicked;
+        CancelButton.Click += (_, _) => { Canceled?.Invoke(this, EventArgs.Empty); Hide(); };
     }
 
     public void Populate(string[] suggestions)
     {
         RootCanvas.Children.Clear();
+        LoadingPanel.Visibility = Visibility.Collapsed;
+        RootCanvas.Visibility = Visibility.Visible;
         _recording = false;
         MicButton.Content = "🎤";
         MicButton.ClearValue(Control.BackgroundProperty);
@@ -52,6 +59,15 @@ public partial class RadialMenuWindow : Window, IRadialMenu
         }
     }
 
+    public void ShowLoading()
+    {
+        LoadingPanel.Visibility = Visibility.Visible;
+        RootCanvas.Visibility = Visibility.Collapsed;
+        _recording = false;
+        MicButton.Content = "🎤";
+        MicButton.ClearValue(Control.BackgroundProperty);
+    }
+
     public void Show(double x, double y)
     {
         Left = x - Width / 2;
@@ -70,6 +86,8 @@ public partial class RadialMenuWindow : Window, IRadialMenu
             MicButton.Content = "🎤";
             MicButton.ClearValue(Control.BackgroundProperty);
         }
+        LoadingPanel.Visibility = Visibility.Collapsed;
+        RootCanvas.Visibility = Visibility.Visible;
         base.Hide();
         _hookService.SetOverlayVisible(false);
     }
@@ -115,5 +133,16 @@ public partial class RadialMenuWindow : Window, IRadialMenu
     {
         base.OnDeactivated(e);
         Hide();
+    }
+
+    protected override void OnPreviewKeyDown(KeyEventArgs e)
+    {
+        base.OnPreviewKeyDown(e);
+        if (e.Key == Key.Escape)
+        {
+            Canceled?.Invoke(this, EventArgs.Empty);
+            Hide();
+            e.Handled = true;
+        }
     }
 }

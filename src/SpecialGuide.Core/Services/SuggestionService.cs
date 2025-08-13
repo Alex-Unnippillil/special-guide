@@ -1,5 +1,7 @@
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+
 namespace SpecialGuide.Core.Services;
 
 public class SuggestionService
@@ -17,11 +19,12 @@ public class SuggestionService
         _settings = settings;
     }
 
-    public async Task<string[]> GetSuggestionsAsync(string appName)
+    public async Task<SuggestionResult> GetSuggestionsAsync(string appName, CancellationToken token)
     {
         var image = _capture.CaptureScreen();
-        var result = await _openAI.GenerateSuggestionsAsync(image, appName);
+        var result = await _openAI.GenerateSuggestionsAsync(image, appName).WaitAsync(token);
         var max = _settings.Settings.MaxSuggestionLength;
-        return result.Suggestions.Select(s => s.Length > max ? s[..max] : s).ToArray();
+        var suggestions = result.Suggestions.Select(s => s.Length > max ? s[..max] : s).ToArray();
+        return new SuggestionResult(suggestions, result.Error);
     }
 }
