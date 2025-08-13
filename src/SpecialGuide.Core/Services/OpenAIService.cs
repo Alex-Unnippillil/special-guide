@@ -77,17 +77,25 @@ public class OpenAIService
 
     public virtual async Task<string> TranscribeAsync(byte[] wav)
     {
-        var apiKey = _settings.ApiKey;
-        using var content = new MultipartFormDataContent();
-        content.Add(new ByteArrayContent(wav), "file", "audio.wav");
-        content.Add(new StringContent("whisper-1"), "model");
-        var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/audio/transcriptions");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        request.Content = content;
-        using var response = await SendAsync(request);
-        var json = await response.Content.ReadAsStringAsync();
-        using var doc = JsonDocument.Parse(json);
-        return doc.RootElement.GetProperty("text").GetString() ?? string.Empty;
+        try
+        {
+            var apiKey = _settings.ApiKey;
+            using var content = new MultipartFormDataContent();
+            content.Add(new ByteArrayContent(wav), "file", "audio.wav");
+            content.Add(new StringContent("whisper-1"), "model");
+            var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/audio/transcriptions");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+            request.Content = content;
+            using var response = await SendAsync(request);
+            var json = await response.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.GetProperty("text").GetString() ?? string.Empty;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Transcription failed");
+            throw;
+        }
     }
 
     public async Task<string> ChatAsync(string prompt)
