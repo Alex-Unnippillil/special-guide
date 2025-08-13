@@ -34,6 +34,10 @@ public class SettingsService : IDisposable
                 {
                     _settings = loaded;
                 }
+                else
+                {
+                    Reset();
+                }
             }
             else
             {
@@ -46,11 +50,13 @@ public class SettingsService : IDisposable
             };
             _watcher.Changed += (_, _) => Reload();
             _watcher.Created += (_, _) => Reload();
+            _watcher.Renamed += (_, _) => Reload();
             _watcher.EnableRaisingEvents = true;
         }
         catch (Exception ex)
         {
             Warn($"Failed to initialize settings file: {ex.Message}");
+            Reset();
         }
     }
 
@@ -67,11 +73,21 @@ public class SettingsService : IDisposable
                     _settings = loaded;
                     SettingsChanged?.Invoke(_settings);
                 }
+                else
+                {
+                    Reset();
+                    Warn("Settings file is invalid; using defaults");
+                }
+            }
+            else
+            {
+                Reset();
             }
         }
         catch (Exception ex)
         {
             Warn($"Failed to read settings: {ex.Message}");
+            Reset();
         }
     }
 
@@ -90,6 +106,12 @@ public class SettingsService : IDisposable
     }
 
     private static void Warn(string message) => Console.Error.WriteLine(message);
+
+    private void Reset()
+    {
+        _settings = new Settings();
+        SettingsChanged?.Invoke(_settings);
+    }
 
     public void Dispose()
     {

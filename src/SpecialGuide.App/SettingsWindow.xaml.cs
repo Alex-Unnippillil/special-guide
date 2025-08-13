@@ -13,6 +13,7 @@ public partial class SettingsWindow : Window
         InitializeComponent();
         _settings = settings;
         DataContext = _settings.Settings;
+        _settings.SettingsChanged += s => Dispatcher.Invoke(() => DataContext = s);
     }
 
     private void OnHotkeyKeyDown(object sender, KeyEventArgs e)
