@@ -4,6 +4,7 @@ using System.Windows;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using SpecialGuide.Core.Models;
 using SpecialGuide.Core.Services;
 
@@ -13,6 +14,7 @@ public partial class App : Application
 {
     private IHost? _host;
     private CancellationTokenSource? _cts;
+    private TrayIcon? _trayIcon;
 
     protected override async Task OnStartup(StartupEventArgs e)
     {
@@ -39,10 +41,21 @@ public partial class App : Application
         await _host.StartAsync(_cts.Token);
         var window = _host.Services.GetRequiredService<MainWindow>();
         window.Hide();
+
+        var logger = _host.Services.GetRequiredService<ILogger<App>>();
+        try
+        {
+            _trayIcon = new TrayIcon(window);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to initialize tray icon");
+        }
     }
 
     protected override async Task OnExit(ExitEventArgs e)
     {
+        _trayIcon?.Dispose();
         if (_host != null && _cts != null)
         {
             var hookService = _host.Services.GetService<HookService>();
