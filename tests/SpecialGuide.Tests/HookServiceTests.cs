@@ -1,3 +1,4 @@
+using SpecialGuide.Core.Models;
 using SpecialGuide.Core.Services;
 using Xunit;
 
@@ -8,7 +9,8 @@ public class HookServiceTests
     [Fact]
     public void StartStop_Repeated_Cycles_Safe()
     {
-        var service = new HookService();
+        using var settings = new SettingsService(new Settings());
+        var service = new HookService(settings);
         if (!OperatingSystem.IsWindows())
         {
             Assert.Throws<DllNotFoundException>(() => service.Start());

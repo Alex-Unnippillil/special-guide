@@ -19,22 +19,22 @@ public partial class MainWindow : Window
         _suggestionService = suggestionService;
         _windowService = windowService;
         _logger = logger;
-        _hookService.MiddleClick += async (sender, e) =>
+        _hookService.HotkeyPressed += async (sender, e) =>
         {
             try
             {
-                await OnMiddleClick(sender, e);
+                await OnHotkeyPressed(sender, e);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error handling middle click");
+                _logger.LogError(ex, "Error handling hotkey");
             }
         };
         _hookService.Start();
         Closed += (_, _) => _hookService.Stop();
     }
 
-    private async Task OnMiddleClick(object? sender, EventArgs e)
+    private async Task OnHotkeyPressed(object? sender, EventArgs e)
     {
         var app = _windowService.GetActiveProcessName();
         var suggestions = await _suggestionService.GetSuggestionsAsync(app);
