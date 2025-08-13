@@ -36,8 +36,8 @@ public class SuggestionServiceTests
     private class FakeOpenAIService : OpenAIService
     {
         public FakeOpenAIService() : base(new HttpClient(), new SettingsService(new Settings()), new LoggingService()) { }
-        public override Task<string[]> GenerateSuggestionsAsync(byte[] image, string appName)
-            => Task.FromResult(new[] { new string('a', 100) });
+        public override Task<SuggestionResult> GenerateSuggestionsAsync(byte[] image, string appName)
+            => Task.FromResult(new SuggestionResult(new[] { new string('a', 100) }, null));
     }
 }
 

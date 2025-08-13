@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -5,6 +6,8 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
 namespace SpecialGuide.Core.Services;
+
+public record SuggestionResult(string[] Suggestions, string? Error);
 
 public class OpenAIService
 {
@@ -19,7 +22,7 @@ public class OpenAIService
         _logger = logger;
     }
 
-    public virtual async Task<string[]> GenerateSuggestionsAsync(byte[] image, string appName)
+    public virtual async Task<SuggestionResult> GenerateSuggestionsAsync(byte[] image, string appName)
     {
         var base64 = Convert.ToBase64String(image);
         var imageUrl = "data:image/png;base64," + base64;
@@ -45,14 +48,31 @@ public class OpenAIService
                 }
             }
         };
-        using var request = CreateChatRequest(payload);
-        using var response = await SendAsync(request);
-        var json = await response.Content.ReadAsStringAsync();
-        using var doc = JsonDocument.Parse(json);
-        var content = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
-        if (string.IsNullOrWhiteSpace(content)) return Array.Empty<string>();
-        var suggestions = JsonSerializer.Deserialize<string[]>(content!);
-        return suggestions ?? Array.Empty<string>();
+        var (response, error) = await SendWithRetryAsync(() => CreateChatRequest(payload));
+        if (error != null || response == null)
+        {
+            return new SuggestionResult(Array.Empty<string>(), error);
+        }
+
+        using (response)
+        {
+            try
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(json);
+                var content = doc.RootElement.GetProperty("choices")[0]
+                    .GetProperty("message").GetProperty("content").GetString();
+                if (string.IsNullOrWhiteSpace(content))
+                    return new SuggestionResult(Array.Empty<string>(), null);
+                var suggestions = JsonSerializer.Deserialize<string[]>(content!);
+                return new SuggestionResult(suggestions ?? Array.Empty<string>(), null);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "Failed to deserialize suggestions");
+                return new SuggestionResult(Array.Empty<string>(), "Malformed response from OpenAI");
+            }
+        }
     }
 
     public async Task<string> TranscribeAsync(byte[] wav)
@@ -107,5 +127,51 @@ public class OpenAIService
             throw ex;
         }
         return response;
+    }
+
+    private async Task<(HttpResponseMessage? Response, string? Error)> SendWithRetryAsync(Func<HttpRequestMessage> requestFactory)
+    {
+        const int maxRetries = 3;
+        for (var attempt = 0; attempt < maxRetries; attempt++)
+        {
+            try
+            {
+                using var request = requestFactory();
+                var response = await _httpClient.SendAsync(request);
+                if (response.IsSuccessStatusCode)
+                {
+                    return (response, null);
+                }
+
+                if (response.StatusCode == HttpStatusCode.TooManyRequests ||
+                    (int)response.StatusCode >= 500)
+                {
+                    response.Dispose();
+                    if (attempt < maxRetries - 1)
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)));
+                        continue;
+                    }
+                }
+
+                var body = await response.Content.ReadAsStringAsync();
+                response.Dispose();
+                var error = $"OpenAI request failed with status code {response.StatusCode}: {body}";
+                _logger.LogError(error);
+                return (null, error);
+            }
+            catch (Exception ex)
+            {
+                if (attempt < maxRetries - 1)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)));
+                    continue;
+                }
+                _logger.LogError(ex, "OpenAI API call failed");
+                return (null, ex.Message);
+            }
+        }
+
+        return (null, "Unknown error");
     }
 }
