@@ -1,8 +1,12 @@
+using System;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using SpecialGuide.Core.Models;
 using SpecialGuide.Core.Services;
+using Drawing = System.Drawing;
+using WinForms = System.Windows.Forms;
 
 namespace SpecialGuide.App.Overlay;
 
@@ -12,7 +16,6 @@ public partial class RadialMenuWindow : Window, IRadialMenu
     private readonly HookService _hookService;
     private readonly AudioService _audioService;
     private readonly OpenAIService _openAIService;
-    private bool _recording;
 
     public RadialMenuWindow(ClipboardService clipboardService, HookService hookService, AudioService audioService, OpenAIService openAIService)
     {
@@ -27,14 +30,16 @@ public partial class RadialMenuWindow : Window, IRadialMenu
     public void Populate(string[] suggestions)
     {
         RootCanvas.Children.Clear();
-        _recording = false;
         MicButton.Content = "🎤";
-        MicButton.ClearValue(Control.BackgroundProperty);
+        RecordingIndicator.Visibility = Visibility.Collapsed;
         var count = suggestions.Length;
         var radius = 80d;
+        RootCanvas.Children.Add(RecordingIndicator);
         RootCanvas.Children.Add(MicButton);
         Canvas.SetLeft(MicButton, radius - MicButton.Width / 2);
         Canvas.SetTop(MicButton, radius - MicButton.Height / 2);
+        Canvas.SetLeft(RecordingIndicator, radius - RecordingIndicator.Width / 2);
+        Canvas.SetTop(RecordingIndicator, radius - RecordingIndicator.Height / 2);
         for (int i = 0; i < count; i++)
         {
             var angle = 2 * Math.PI * i / count;
@@ -63,12 +68,11 @@ public partial class RadialMenuWindow : Window, IRadialMenu
 
     public new void Hide()
     {
-        if (_recording)
+        if (_audioService.IsRecording)
         {
             _audioService.Stop();
-            _recording = false;
             MicButton.Content = "🎤";
-            MicButton.ClearValue(Control.BackgroundProperty);
+            RecordingIndicator.Visibility = Visibility.Collapsed;
         }
         base.Hide();
         _hookService.SetOverlayVisible(false);
@@ -82,12 +86,11 @@ public partial class RadialMenuWindow : Window, IRadialMenu
 
     private async void OnMicClicked(object sender, RoutedEventArgs e)
     {
-        if (_recording)
+        if (_audioService.IsRecording)
         {
             var data = _audioService.Stop();
-            _recording = false;
             MicButton.Content = "🎤";
-            MicButton.ClearValue(Control.BackgroundProperty);
+            RecordingIndicator.Visibility = Visibility.Collapsed;
             try
             {
                 var text = await _openAIService.TranscribeAsync(data);
@@ -98,16 +101,15 @@ public partial class RadialMenuWindow : Window, IRadialMenu
             }
             catch
             {
-                MessageBox.Show("Transcription failed", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowToast("Transcription failed");
             }
             Hide();
         }
         else
         {
             _audioService.Start();
-            _recording = true;
             MicButton.Content = "■";
-            MicButton.Background = Brushes.Red;
+            RecordingIndicator.Visibility = Visibility.Visible;
         }
     }
 
@@ -115,5 +117,19 @@ public partial class RadialMenuWindow : Window, IRadialMenu
     {
         base.OnDeactivated(e);
         Hide();
+    }
+
+    private static async void ShowToast(string message)
+    {
+        var icon = new WinForms.NotifyIcon
+        {
+            Icon = Drawing.SystemIcons.Information,
+            Visible = true,
+            BalloonTipTitle = "SpecialGuide",
+            BalloonTipText = message
+        };
+        icon.ShowBalloonTip(3000);
+        await Task.Delay(4000);
+        icon.Dispose();
     }
 }

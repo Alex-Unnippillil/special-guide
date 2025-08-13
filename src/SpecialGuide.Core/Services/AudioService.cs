@@ -13,6 +13,11 @@ public class AudioService : IDisposable
 
     public void Start()
     {
+        if (IsRecording)
+        {
+            return;
+        }
+
         _waveIn = new WaveInEvent();
         Stream = new MemoryStream();
         Writer = new WaveFileWriter(Stream, _waveIn.WaveFormat);
@@ -26,10 +31,11 @@ public class AudioService : IDisposable
 
     public byte[] Stop()
     {
-        if (!IsRecording)
+        if (!IsRecording && Stream == null)
         {
             return Array.Empty<byte>();
         }
+
         if (_waveIn != null && _dataAvailableHandler != null)
         {
             _waveIn.DataAvailable -= _dataAvailableHandler;

@@ -20,6 +20,11 @@ public class ClipboardService
 
     public virtual void SetText(string text)
     {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return;
+        }
+
         Clipboard.SetText(text);
         if (AutoPaste)
         {
