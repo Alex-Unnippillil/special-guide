@@ -44,9 +44,7 @@ public partial class SettingsWindow : Window
             _settings.Settings.Hotkey = string.Empty;
         }
         _settings.Save();
-        if (!_hookService.Reload())
-        {
-            MessageBox.Show("Hotkey registration failed. Using middle-click instead.", "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+
         }
         Close();
     }
