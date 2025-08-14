@@ -3,6 +3,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Drawing;
+using System.Threading.Tasks;
+using Forms = System.Windows.Forms;
 using SpecialGuide.Core.Models;
 using SpecialGuide.Core.Services;
 
@@ -49,13 +52,19 @@ public partial class RadialMenuWindow : Window, IRadialMenu
         _recording = false;
         MicButton.Content = "🎤";
         MicButton.ClearValue(Control.BackgroundProperty);
-        Spinner.Visibility = Visibility.Collapsed;
-        CancelButton.Visibility = Visibility.Collapsed;
         var count = suggestions.Length;
         var radius = 80d;
         RootCanvas.Children.Add(MicButton);
+        RootCanvas.Children.Add(Spinner);
+        RootCanvas.Children.Add(CancelButton);
+        Spinner.Visibility = Visibility.Collapsed;
+        CancelButton.Visibility = Visibility.Collapsed;
         Canvas.SetLeft(MicButton, radius - MicButton.Width / 2);
         Canvas.SetTop(MicButton, radius - MicButton.Height / 2);
+        Canvas.SetLeft(Spinner, radius - Spinner.Width / 2);
+        Canvas.SetTop(Spinner, radius - Spinner.Height / 2);
+        Canvas.SetLeft(CancelButton, radius - CancelButton.Width / 2);
+        Canvas.SetTop(CancelButton, radius + 20);
         for (int i = 0; i < count; i++)
         {
             var angle = 2 * Math.PI * i / count;
@@ -109,6 +118,7 @@ public partial class RadialMenuWindow : Window, IRadialMenu
             _recording = false;
             MicButton.Content = "🎤";
             MicButton.ClearValue(Control.BackgroundProperty);
+            Spinner.Visibility = Visibility.Visible;
             try
             {
                 var text = await _openAIService.TranscribeAsync(data);
@@ -119,9 +129,13 @@ public partial class RadialMenuWindow : Window, IRadialMenu
             }
             catch
             {
-                MessageBox.Show("Transcription failed", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowErrorToast("Transcription failed");
             }
-            Hide();
+            finally
+            {
+                Spinner.Visibility = Visibility.Collapsed;
+                Hide();
+            }
         }
         else
         {
@@ -130,6 +144,17 @@ public partial class RadialMenuWindow : Window, IRadialMenu
             MicButton.Content = "■";
             MicButton.Background = Brushes.Red;
         }
+    }
+
+    private static void ShowErrorToast(string message)
+    {
+        var icon = new Forms.NotifyIcon
+        {
+            Icon = SystemIcons.Error,
+            Visible = true
+        };
+        icon.ShowBalloonTip(3000, "Error", message, Forms.ToolTipIcon.Error);
+        _ = Task.Delay(4000).ContinueWith(_ => icon.Dispose());
     }
 
     protected override void OnDeactivated(EventArgs e)
