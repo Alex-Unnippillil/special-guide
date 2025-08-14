@@ -5,20 +5,24 @@ using System.Windows.Forms;
 
 namespace SpecialGuide.Core.Services;
 
+/// <summary>
+/// Manages global mouse and keyboard hooks used to activate the overlay.
+/// Middle mouse click is always registered and an optional keyboard hotkey
+/// can be configured through <see cref="SettingsService"/>.
+/// </summary>
 public class HookService : IDisposable
 {
     private readonly SettingsService _settings;
+
     private IntPtr _mouseHookId = IntPtr.Zero;
     private IntPtr _keyboardHookId = IntPtr.Zero;
     private HookProc? _mouseProc;
     private HookProc? _keyboardProc;
-    private bool _overlayVisible;
-    private Hotkey? _hotkey;
+
 
     internal bool IsMouseHookActive => _mouseHookId != IntPtr.Zero;
     internal bool IsKeyboardHookActive => _keyboardHookId != IntPtr.Zero;
 
-    public event EventHandler? HotkeyPressed;
 
     public HookService(SettingsService settings)
     {
@@ -26,82 +30,19 @@ public class HookService : IDisposable
         _settings.SettingsChanged += _ => Reload();
     }
 
-    public void Start() => Reload();
-
-    public void Stop()
-    {
-        if (_keyboardHookId != IntPtr.Zero)
-        {
-            UnhookWindowsHookEx(_keyboardHookId);
-            _keyboardHookId = IntPtr.Zero;
-        }
-        if (_mouseHookId != IntPtr.Zero)
         {
             UnhookWindowsHookEx(_mouseHookId);
             _mouseHookId = IntPtr.Zero;
         }
+
     }
 
+    /// <summary>
+    /// Reloads the keyboard hook according to the current settings.
+    /// </summary>
     private void Reload()
     {
-        Stop();
-        _hotkey = null;
-        RegisterMouseHook();
-        var hotkeyString = _settings.ActivationHotkey;
-        if (TryParseHotkey(hotkeyString, out var hotkey) && !IsReservedHotkey(hotkey))
-        {
-            _hotkey = hotkey;
-            RegisterKeyboardHook();
-        }
-    }
 
-    private void RegisterMouseHook()
-    {
-        _mouseProc ??= MouseHookCallback;
-        using var curProcess = Process.GetCurrentProcess();
-        using var curModule = curProcess.MainModule!;
-        _mouseHookId = SetWindowsHookEx(WH_MOUSE_LL, _mouseProc, GetModuleHandle(curModule.ModuleName), 0);
-    }
-
-    private void RegisterKeyboardHook()
-    {
-        _keyboardProc ??= KeyboardHookCallback;
-        using var curProcess = Process.GetCurrentProcess();
-        using var curModule = curProcess.MainModule!;
-        _keyboardHookId = SetWindowsHookEx(WH_KEYBOARD_LL, _keyboardProc, GetModuleHandle(curModule.ModuleName), 0);
-    }
-
-    public static bool TryParseHotkey(string? hotkey, out Hotkey result)
-    {
-        result = default;
-        if (string.IsNullOrWhiteSpace(hotkey)) return false;
-        Keys key = Keys.None;
-        Keys mods = Keys.None;
-        foreach (var part in hotkey.Split('+', StringSplitOptions.RemoveEmptyEntries))
-        {
-            switch (part.Trim().ToLowerInvariant())
-            {
-                case "control":
-                case "ctrl":
-                    mods |= Keys.Control;
-                    break;
-                case "shift":
-                    mods |= Keys.Shift;
-                    break;
-                case "alt":
-                    mods |= Keys.Alt;
-                    break;
-                default:
-                    if (Enum.TryParse(part, true, out Keys parsedKey))
-                    {
-                        key = parsedKey;
-                    }
-                    else
-                    {
-                        return false;
-                    }
-                    break;
-            }
         }
         if (key == Keys.None) return false;
         result = new Hotkey(key, mods);
@@ -117,9 +58,14 @@ public class HookService : IDisposable
         return false;
     }
 
+    /// <summary>
+    /// Indicates whether the overlay is currently visible. When visible we
+    /// suppress the input that triggered it.
+    /// </summary>
     public void SetOverlayVisible(bool visible) => _overlayVisible = visible;
 
     public void Dispose() => Stop();
+
 
     private IntPtr MouseHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
@@ -129,6 +75,7 @@ public class HookService : IDisposable
             HotkeyPressed?.Invoke(this, EventArgs.Empty);
             if (_overlayVisible)
             {
+                // Swallow middle click when overlay is visible
                 return new IntPtr(1);
             }
         }
@@ -138,32 +85,7 @@ public class HookService : IDisposable
     private IntPtr KeyboardHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
         const int WM_KEYDOWN = 0x0100;
-        const int WM_SYSKEYDOWN = 0x0104;
-        if (nCode >= 0 && _hotkey.HasValue && (wParam == (IntPtr)WM_KEYDOWN || wParam == (IntPtr)WM_SYSKEYDOWN))
-        {
-            var hookStruct = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
-            var key = (Keys)hookStruct.vkCode;
-            var mods = GetCurrentModifiers();
-            if (key == _hotkey.Value.Key && mods == _hotkey.Value.Modifiers)
-            {
-                HotkeyPressed?.Invoke(this, EventArgs.Empty);
-                if (_overlayVisible)
-                {
-                    return new IntPtr(1);
-                }
-            }
-        }
-        return CallNextHookEx(_keyboardHookId, nCode, wParam, lParam);
-    }
 
-    private static Keys GetCurrentModifiers()
-    {
-        Keys mods = Keys.None;
-        if ((GetAsyncKeyState((int)Keys.ControlKey) & 0x8000) != 0) mods |= Keys.Control;
-        if ((GetAsyncKeyState((int)Keys.ShiftKey) & 0x8000) != 0) mods |= Keys.Shift;
-        if ((GetAsyncKeyState((int)Keys.Menu) & 0x8000) != 0) mods |= Keys.Alt;
-        return mods;
-    }
 
     private delegate IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam);
 
@@ -195,5 +117,6 @@ public class HookService : IDisposable
     private static extern IntPtr GetModuleHandle(string lpModuleName);
 
     [DllImport("user32.dll")]
-    private static extern short GetAsyncKeyState(int vKey);
+
 }
+

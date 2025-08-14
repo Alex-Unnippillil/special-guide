@@ -41,6 +41,7 @@ public class SuggestionServiceTests
         cts.Cancel();
         var result = await service.GetSuggestionsAsync("app", cts.Token);
         Assert.NotNull(result.Error);
+        Assert.Equal("Canceled", result.Error!.Message);
         Assert.Empty(result.Suggestions);
     }
 
@@ -52,7 +53,7 @@ public class SuggestionServiceTests
         var settings = new SettingsService(new Settings());
         var service = new SuggestionService(capture, openai, settings);
         var result = await service.GetSuggestionsAsync("app");
-        Assert.Equal("boom", result.Error);
+        Assert.Equal("boom", result.Error?.Message);
     }
 
     private class FakeCaptureService : CaptureService
@@ -81,7 +82,7 @@ public class SuggestionServiceTests
     {
         public ErrorOpenAIService() : base(new HttpClient(), new SettingsService(new Settings()), new LoggingService()) { }
         public override Task<SuggestionResult> GenerateSuggestionsAsync(byte[] image, string appName, CancellationToken cancellationToken = default)
-            => Task.FromResult(new SuggestionResult(Array.Empty<string>(), "boom"));
+            => Task.FromResult(new SuggestionResult(Array.Empty<string>(), new OpenAIError(null, "boom")));
     }
 }
 

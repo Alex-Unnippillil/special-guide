@@ -8,7 +8,9 @@ using Microsoft.Extensions.Logging;
 
 namespace SpecialGuide.Core.Services;
 
-public record SuggestionResult(string[] Suggestions, string? Error);
+public record OpenAIError(HttpStatusCode? StatusCode, string Message);
+
+public record SuggestionResult(string[] Suggestions, OpenAIError? Error);
 
 public class OpenAIService
 {
@@ -71,7 +73,7 @@ public class OpenAIService
             catch (JsonException ex)
             {
                 _logger.LogError(ex, "Failed to deserialize suggestions");
-                return new SuggestionResult(Array.Empty<string>(), "Malformed response from OpenAI");
+                return new SuggestionResult(Array.Empty<string>(), new OpenAIError(null, "Malformed response from OpenAI"));
             }
         }
     }
@@ -130,7 +132,7 @@ public class OpenAIService
         return response;
     }
 
-    private async Task<(HttpResponseMessage? Response, string? Error)> SendWithRetryAsync(Func<HttpRequestMessage> requestFactory, CancellationToken cancellationToken)
+    private async Task<(HttpResponseMessage? Response, OpenAIError? Error)> SendWithRetryAsync(Func<HttpRequestMessage> requestFactory, CancellationToken cancellationToken)
     {
         const int maxRetries = 3;
         for (var attempt = 0; attempt < maxRetries; attempt++)
@@ -157,8 +159,8 @@ public class OpenAIService
 
                 var body = await response.Content.ReadAsStringAsync();
                 response.Dispose();
-                var error = $"OpenAI request failed with status code {response.StatusCode}: {body}";
-                _logger.LogError(error);
+                var error = new OpenAIError(response.StatusCode, $"OpenAI request failed with status code {response.StatusCode}: {body}");
+                _logger.LogError(error.Message);
                 return (null, error);
             }
             catch (Exception ex) when (!(ex is OperationCanceledException && cancellationToken.IsCancellationRequested))
@@ -169,10 +171,10 @@ public class OpenAIService
                     continue;
                 }
                 _logger.LogError(ex, "OpenAI API call failed");
-                return (null, ex.Message);
+                return (null, new OpenAIError(null, ex.Message));
             }
         }
 
-        return (null, cancellationToken.IsCancellationRequested ? "Canceled" : "Unknown error");
+        return (null, new OpenAIError(null, cancellationToken.IsCancellationRequested ? "Canceled" : "Unknown error"));
     }
 }
