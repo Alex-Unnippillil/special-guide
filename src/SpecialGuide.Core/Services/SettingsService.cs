@@ -13,7 +13,7 @@ public class SettingsService : IDisposable
 
     public Settings Settings => _settings;
     public string ApiKey => _settings.ApiKey;
-    public string ActivationHotkey => _settings.ActivationHotkey;
+    public string ActivationHotkey => _settings.Hotkey;
 
     public event Action<Settings>? SettingsChanged;
 
