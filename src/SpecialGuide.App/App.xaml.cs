@@ -1,8 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Drawing;
-using System.Windows.Forms;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SpecialGuide.Core.Services;
@@ -13,7 +11,7 @@ public partial class App : Application
 {
     private IHost? _host;
     private CancellationTokenSource? _cts;
-    private NotifyIcon? _notifyIcon;
+    private TrayIcon? _trayIcon;
 
     protected override async Task OnStartup(StartupEventArgs e)
     {
@@ -34,35 +32,20 @@ public partial class App : Application
                 services.AddSingleton<WindowService>();
                 services.AddSingleton<MainWindow>();
                 services.AddTransient<SettingsWindow>();
+                services.AddSingleton<TrayIcon>();
             })
             .Build();
 
         await _host.StartAsync(_cts.Token);
         var window = _host.Services.GetRequiredService<MainWindow>();
         window.Hide();
-
-        _notifyIcon = new NotifyIcon
-        {
-            Icon = SystemIcons.Application,
-            Visible = true,
-            Text = "SpecialGuide",
-            ContextMenuStrip = new ContextMenuStrip()
-        };
-        _notifyIcon.ContextMenuStrip.Items.Add("Settings", null, (_, _) => ShowSettings());
-        _notifyIcon.ContextMenuStrip.Items.Add("Exit", null, (_, _) => Shutdown());
-    }
-
-    private void ShowSettings()
-    {
-        if (_host == null) return;
-        var window = _host.Services.GetRequiredService<SettingsWindow>();
-        window.Show();
-        window.Activate();
+        _trayIcon = _host.Services.GetRequiredService<TrayIcon>();
+        _trayIcon.Initialize();
     }
 
     protected override async Task OnExit(ExitEventArgs e)
     {
-        _notifyIcon?.Dispose();
+        _trayIcon?.Dispose();
         if (_host != null && _cts != null)
         {
             var hookService = _host.Services.GetService<HookService>();
