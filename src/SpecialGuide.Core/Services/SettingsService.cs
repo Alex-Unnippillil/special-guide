@@ -14,6 +14,7 @@ public class SettingsService : IDisposable
     public Settings Settings => _settings;
     public string ApiKey => _settings.ApiKey;
 
+
     public event Action<Settings>? SettingsChanged;
 
     public SettingsService() : this(new Settings()) { }
