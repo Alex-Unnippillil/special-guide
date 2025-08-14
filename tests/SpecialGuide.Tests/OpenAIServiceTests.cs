@@ -31,6 +31,7 @@ namespace SpecialGuide.Tests
             var service = new OpenAIService(http, new SettingsService(new Settings()), new LoggingService());
             var result = await service.GenerateSuggestionsAsync(Array.Empty<byte>(), "app");
             Assert.NotNull(result.Error);
+            Assert.Equal("Malformed response from OpenAI", result.Error!.Message);
             Assert.Empty(result.Suggestions);
         }
 
@@ -70,6 +71,26 @@ namespace SpecialGuide.Tests
             Assert.Equal(3, handler.Calls);
             Assert.Empty(result.Suggestions);
             Assert.NotNull(result.Error);
+            Assert.Equal(HttpStatusCode.InternalServerError, result.Error!.StatusCode);
+        }
+
+        [Fact]
+        public async Task Gives_Up_On_RateLimit()
+        {
+            var responses = new[]
+            {
+                new HttpResponseMessage((HttpStatusCode)429),
+                new HttpResponseMessage((HttpStatusCode)429),
+                new HttpResponseMessage((HttpStatusCode)429)
+            };
+            var handler = new SequenceHandler(responses);
+            var http = new HttpClient(handler);
+            var service = new OpenAIService(http, new SettingsService(new Settings()), new LoggingService());
+            var result = await service.GenerateSuggestionsAsync(Array.Empty<byte>(), "app");
+            Assert.Equal(3, handler.Calls);
+            Assert.Empty(result.Suggestions);
+            Assert.NotNull(result.Error);
+            Assert.Equal((HttpStatusCode)429, result.Error!.StatusCode);
         }
 
         private class FakeHandler : HttpMessageHandler
