@@ -31,7 +31,7 @@ public class SuggestionService
         }
         catch (OperationCanceledException)
         {
-            return new SuggestionResult(Array.Empty<string>(), "Canceled");
+            return new SuggestionResult(Array.Empty<string>(), new OpenAIError(null, "Canceled"));
         }
     }
 }
