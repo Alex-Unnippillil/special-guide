@@ -36,8 +36,6 @@ public partial class MainWindow : Window
             }
         };
 
-        _overlayService.CancelRequested += (_, _) => CancelActive();
-
         _hookService.Start();
         Closed += (_, _) => _hookService.Stop();
     }
