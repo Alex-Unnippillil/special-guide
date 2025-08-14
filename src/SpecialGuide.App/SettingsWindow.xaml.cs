@@ -44,8 +44,7 @@ public partial class SettingsWindow : Window
             _settings.Settings.Hotkey = string.Empty;
         }
         _settings.Save();
-
-        }
+        _hookService.Reload();
         Close();
     }
 }
