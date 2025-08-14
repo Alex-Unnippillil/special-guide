@@ -17,11 +17,7 @@ public partial class SettingsWindow : Window
     private void OnSave(object sender, RoutedEventArgs e)
     {
         _settings.Save();
-        Close();
-    }
 
-    private void OnCancel(object sender, RoutedEventArgs e)
-    {
         Close();
     }
 }
