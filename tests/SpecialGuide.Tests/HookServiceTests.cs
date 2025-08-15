@@ -1,7 +1,6 @@
+using System;
 
-using SpecialGuide.Core.Models;
 using SpecialGuide.Core.Services;
-using SpecialGuide.Core.Models;
 using Xunit;
 
 namespace SpecialGuide.Tests;
@@ -9,11 +8,18 @@ namespace SpecialGuide.Tests;
 public class HookServiceTests
 {
 
-        {
-            if (hookId == new IntPtr(1)) KeyboardHookCount--;
-            if (hookId == new IntPtr(2)) MouseHookCount--;
-            return true;
         }
+        return IntPtr.Zero;
+    }
+
+    private bool UnregisterHook(IntPtr hookId)
+    {
+        if (hookId == new IntPtr(1)) _keyboardHookCount--;
+        if (hookId == new IntPtr(2)) _mouseHookCount--;
+        return true;
+    }
+
 
     }
 }
+

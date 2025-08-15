@@ -14,7 +14,7 @@ public class SettingsService : IDisposable
 
     public Settings Settings => _settings;
     public string ApiKey => _settings.ApiKey;
-    public string ActivationHotkey => _settings.ActivationHotkey;
+
 
     public event Action<Settings>? SettingsChanged;
 
@@ -23,7 +23,10 @@ public class SettingsService : IDisposable
     public SettingsService(Settings defaults)
     {
         _settings = defaults;
-        _path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SpecialGuide", "appsettings.json");
+        _path = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "SpecialGuide",
+            "appsettings.json");
         try
         {
             var dir = Path.GetDirectoryName(_path)!;

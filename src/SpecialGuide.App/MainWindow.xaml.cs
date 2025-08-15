@@ -24,6 +24,7 @@ public partial class MainWindow : Window
         _windowService = windowService;
         _logger = logger;
 
+        _hookService.HotkeyPressed += async (sender, e) =>
         {
             try
             {
@@ -34,6 +35,7 @@ public partial class MainWindow : Window
                 _logger.LogError(ex, "Error handling hotkey");
             }
         };
+
         _hookService.Start();
         Closed += (_, _) => _hookService.Stop();
     }
