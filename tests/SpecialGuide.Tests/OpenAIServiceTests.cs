@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using SpecialGuide.Core.Services;
+using SpecialGuide.Core.Models;
 using Xunit;
 
 namespace SpecialGuide.Tests

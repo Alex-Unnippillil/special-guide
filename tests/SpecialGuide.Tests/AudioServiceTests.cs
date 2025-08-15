@@ -17,6 +17,7 @@ public class AudioServiceTests
 
         service.Stream = stream;
         service.Writer = writer;
+        typeof(AudioService).GetProperty("IsRecording")?.SetValue(service, true);
 
         var data = service.Stop();
         Assert.NotNull(data);

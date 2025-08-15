@@ -1,5 +1,11 @@
 namespace SpecialGuide.Core.Models;
 
+public enum CaptureMode
+{
+    FullScreen,
+    ActiveWindow
+}
+
 public class Settings
 {
     public string ApiKey { get; set; } = string.Empty;
