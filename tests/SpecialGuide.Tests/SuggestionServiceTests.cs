@@ -1,4 +1,4 @@
-
+using System.Threading;
 using System.Threading.Tasks;
 using SpecialGuide.Core.Services;
 using Xunit;
@@ -14,7 +14,7 @@ public class SuggestionServiceTests
         var openai = new FakeOpenAIService();
         var settings = new SettingsService(new Settings());
         var service = new SuggestionService(capture, openai, settings);
-        var result = await service.GetSuggestionsAsync("app");
+        var result = await service.GetSuggestionsAsync("app", CancellationToken.None);
         Assert.All(result.Suggestions, s => Assert.True(s.Length <= SuggestionService.DefaultMaxSuggestionLength));
     }
 
@@ -25,7 +25,7 @@ public class SuggestionServiceTests
         var openai = new FakeOpenAIService();
         var settings = new SettingsService(new Settings { MaxSuggestionLength = 10 });
         var service = new SuggestionService(capture, openai, settings);
-        var result = await service.GetSuggestionsAsync("app");
+        var result = await service.GetSuggestionsAsync("app", CancellationToken.None);
         Assert.All(result.Suggestions, s => Assert.True(s.Length <= 10));
     }
 
@@ -51,7 +51,7 @@ public class SuggestionServiceTests
         var openai = new ErrorOpenAIService();
         var settings = new SettingsService(new Settings());
         var service = new SuggestionService(capture, openai, settings);
-        var result = await service.GetSuggestionsAsync("app");
+        var result = await service.GetSuggestionsAsync("app", CancellationToken.None);
         Assert.Equal("boom", result.Error?.Message);
     }
 
