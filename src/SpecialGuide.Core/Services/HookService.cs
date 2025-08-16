@@ -13,28 +13,58 @@ namespace SpecialGuide.Core.Services;
 public class HookService : IDisposable
 {
     private readonly SettingsService _settings;
+    private readonly Func<int, HookProc, IntPtr, uint, IntPtr> _setHook;
+    private readonly Func<IntPtr, bool> _unhook;
 
-    private IntPtr _mouseHookId = IntPtr.Zero;
-    private IntPtr _keyboardHookId = IntPtr.Zero;
+    private IntPtr _mouseHookId;
+    private IntPtr _keyboardHookId;
     private HookProc? _mouseProc;
     private HookProc? _keyboardProc;
+    private Hotkey _hotkey;
+    private bool _overlayVisible;
 
+    public event EventHandler? HotkeyPressed;
 
     internal bool IsMouseHookActive => _mouseHookId != IntPtr.Zero;
     internal bool IsKeyboardHookActive => _keyboardHookId != IntPtr.Zero;
 
-
-    public HookService(SettingsService settings)
+    public HookService(
+        SettingsService settings,
+        Func<int, HookProc, IntPtr, uint, IntPtr>? setHook = null,
+        Func<IntPtr, bool>? unhook = null)
     {
         _settings = settings;
         _settings.SettingsChanged += _ => Reload();
+        _setHook = setHook ?? SetWindowsHookEx;
+        _unhook = unhook ?? UnhookWindowsHookEx;
     }
 
+    /// <summary>Start listening for hooks.</summary>
+    public void Start()
+    {
+        if (_mouseHookId == IntPtr.Zero)
         {
-            UnhookWindowsHookEx(_mouseHookId);
-            _mouseHookId = IntPtr.Zero;
+            _mouseProc = MouseHookCallback;
+            _mouseHookId = _setHook(WH_MOUSE_LL, _mouseProc, GetModuleHandle(Process.GetCurrentProcess().MainModule!.ModuleName), 0);
         }
+        Reload();
+    }
 
+    /// <summary>Stop listening for hooks.</summary>
+    public void Stop()
+    {
+        if (_mouseHookId != IntPtr.Zero)
+        {
+            _unhook(_mouseHookId);
+            _mouseHookId = IntPtr.Zero;
+            _mouseProc = null;
+        }
+        if (_keyboardHookId != IntPtr.Zero)
+        {
+            _unhook(_keyboardHookId);
+            _keyboardHookId = IntPtr.Zero;
+            _keyboardProc = null;
+        }
     }
 
     /// <summary>
@@ -42,7 +72,50 @@ public class HookService : IDisposable
     /// </summary>
     private void Reload()
     {
+        if (_keyboardHookId != IntPtr.Zero)
+        {
+            _unhook(_keyboardHookId);
+            _keyboardHookId = IntPtr.Zero;
+            _keyboardProc = null;
+        }
 
+        if (HotkeyFromString(_settings.Settings.Hotkey, out var hotkey))
+        {
+            _hotkey = hotkey;
+            _keyboardProc = KeyboardHookCallback;
+            _keyboardHookId = _setHook(WH_KEYBOARD_LL, _keyboardProc, GetModuleHandle(Process.GetCurrentProcess().MainModule!.ModuleName), 0);
+        }
+    }
+
+    internal static bool HotkeyFromString(string? text, out Hotkey result)
+    {
+        result = default;
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        Keys mods = Keys.None;
+        Keys key = Keys.None;
+        foreach (var p in text.Split('+', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (Enum.TryParse<Keys>(p.Trim(), true, out var parsed))
+            {
+                switch (parsed)
+                {
+                    case Keys.Control:
+                    case Keys.ControlKey:
+                        mods |= Keys.Control;
+                        break;
+                    case Keys.Shift:
+                    case Keys.ShiftKey:
+                        mods |= Keys.Shift;
+                        break;
+                    case Keys.Menu:
+                    case Keys.Alt:
+                        mods |= Keys.Alt;
+                        break;
+                    default:
+                        key = parsed;
+                        break;
+                }
+            }
         }
         if (key == Keys.None) return false;
         result = new Hotkey(key, mods);
@@ -66,7 +139,6 @@ public class HookService : IDisposable
 
     public void Dispose() => Stop();
 
-
     private IntPtr MouseHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
         const int WM_MBUTTONDOWN = 0x0207;
@@ -85,9 +157,22 @@ public class HookService : IDisposable
     private IntPtr KeyboardHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
         const int WM_KEYDOWN = 0x0100;
+        if (nCode >= 0 && wParam == (IntPtr)WM_KEYDOWN)
+        {
+            var kbd = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
+            var key = (Keys)kbd.vkCode;
+            var mods = Control.ModifierKeys;
+            if (key == _hotkey.Key && mods == _hotkey.Modifiers)
+            {
+                HotkeyPressed?.Invoke(this, EventArgs.Empty);
+                if (_overlayVisible)
+                    return new IntPtr(1);
+            }
+        }
+        return CallNextHookEx(_keyboardHookId, nCode, wParam, lParam);
+    }
 
-
-    private delegate IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam);
+    internal delegate IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct KBDLLHOOKSTRUCT
@@ -115,8 +200,4 @@ public class HookService : IDisposable
 
     [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     private static extern IntPtr GetModuleHandle(string lpModuleName);
-
-    [DllImport("user32.dll")]
-
 }
-
