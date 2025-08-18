@@ -86,12 +86,13 @@ public class SettingsService : IDisposable
         {
             var json = JsonSerializer.Serialize(_settings, CreateOptions());
             File.WriteAllText(_path, json);
-            SettingsChanged?.Invoke(_settings);
         }
         catch (Exception ex)
         {
             Warn($"Failed to save settings: {ex.Message}");
         }
+
+        SettingsChanged?.Invoke(_settings);
     }
 
     private static JsonSerializerOptions CreateOptions()
