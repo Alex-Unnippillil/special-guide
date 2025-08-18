@@ -24,6 +24,25 @@ namespace SpecialGuide.Tests
             Assert.Null(result.Error);
         }
 
+        [Theory]
+        [InlineData(3)]
+        [InlineData(5)]
+        public async Task Uses_SuggestionCount_In_Payload(int count)
+        {
+            var handler = new InspectHandler();
+            var http = new HttpClient(handler);
+            var service = new OpenAIService(http, new SettingsService(new Settings { SuggestionCount = count }), new LoggingService());
+            await service.GenerateSuggestionsAsync(Array.Empty<byte>(), "app", CancellationToken.None);
+            Assert.NotNull(handler.Request);
+            var json = await handler.Request!.Content!.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            var message = doc.RootElement.GetProperty("messages")[0].GetProperty("content").GetString();
+            Assert.Equal($"Return {count} short, actionable next-step prompts tailored to app.", message);
+            var schema = doc.RootElement.GetProperty("response_format").GetProperty("json_schema").GetProperty("schema");
+            Assert.Equal(count, schema.GetProperty("minItems").GetInt32());
+            Assert.Equal(count, schema.GetProperty("maxItems").GetInt32());
+        }
+
         [Fact]
         public async Task Returns_Error_On_Invalid_Json()
         {
@@ -164,6 +183,20 @@ namespace SpecialGuide.Tests
             var ex = await Assert.ThrowsAsync<HttpRequestException>(() => service.TranscribeAsync(Array.Empty<byte>(), CancellationToken.None));
             Assert.Equal(3, handler.Calls);
             Assert.Equal(HttpStatusCode.InternalServerError, ex.StatusCode);
+        }
+
+        private class InspectHandler : HttpMessageHandler
+        {
+            public HttpRequestMessage? Request { get; private set; }
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                Request = request;
+                var message = new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"choices\":[{\"message\":{\"content\":\"[]\"}}]}")
+                };
+                return Task.FromResult(message);
+            }
         }
 
         private class FakeHandler : HttpMessageHandler

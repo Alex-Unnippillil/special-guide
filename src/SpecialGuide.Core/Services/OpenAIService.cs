@@ -29,12 +29,13 @@ public class OpenAIService
     {
         var base64 = Convert.ToBase64String(image);
         var imageUrl = "data:image/png;base64," + base64;
+        var count = _settings.Settings.SuggestionCount;
         var payload = new
         {
             model = "gpt-4o-mini",
             messages = new object[]
             {
-                new { role = "system", content = $"Return 6 short, actionable next-step prompts tailored to {appName}." },
+                new { role = "system", content = $"Return {count} short, actionable next-step prompts tailored to {appName}." },
                 new { role = "user", content = new object[]{ new { type="image_url", image_url = new { url = imageUrl } } } }
             },
             response_format = new
@@ -46,6 +47,8 @@ public class OpenAIService
                     schema = new
                     {
                         type = "array",
+                        minItems = count,
+                        maxItems = count,
                         items = new { type = "string" }
                     }
                 }
