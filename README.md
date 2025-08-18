@@ -12,7 +12,7 @@ Special Guide replaces the middle-mouse button with a radial AI assistant. When 
 
 ## Setup
 1. Install [.NET 8 SDK](https://dotnet.microsoft.com/download).
-2. `cp .env/appsettings.sample .env/appsettings` and set `OPENAI_API_KEY`.
+2. `cp .env/appsettings.sample .env/appsettings` and set `OPENAI_API_KEY`, or export `OPENAI_API_KEY` in your environment; the app will pick it up on first run and save it to settings.
 3. Build and run:
    ```bash
    dotnet restore

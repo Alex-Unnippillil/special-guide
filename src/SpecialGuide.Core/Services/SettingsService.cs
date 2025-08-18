@@ -45,6 +45,16 @@ public class SettingsService : IDisposable
                 Save();
             }
 
+            if (string.IsNullOrWhiteSpace(_settings.ApiKey))
+            {
+                var envApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+                if (!string.IsNullOrWhiteSpace(envApiKey))
+                {
+                    _settings.ApiKey = envApiKey;
+                    Save();
+                }
+            }
+
             _watcher = new FileSystemWatcher(dir, Path.GetFileName(_path))
             {
                 NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.CreationTime | NotifyFilters.FileName
