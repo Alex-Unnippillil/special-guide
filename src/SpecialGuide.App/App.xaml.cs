@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using SpecialGuide.Core.Models;
 using SpecialGuide.Core.Services;
 
 namespace SpecialGuide.App;
