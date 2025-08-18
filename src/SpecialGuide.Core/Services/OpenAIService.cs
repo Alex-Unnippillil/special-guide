@@ -80,17 +80,16 @@ public class OpenAIService
 
     public virtual async Task<string> TranscribeAsync(byte[] wav, CancellationToken cancellationToken = default)
     {
-        var apiKey = _settings.ApiKey;
-        using var content = new MultipartFormDataContent();
-        content.Add(new ByteArrayContent(wav), "file", "audio.wav");
-        content.Add(new StringContent("whisper-1"), "model");
-        var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/audio/transcriptions");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        request.Content = content;
-        using var response = await SendAsync(request, cancellationToken);
-        var json = await response.Content.ReadAsStringAsync(cancellationToken);
-        using var doc = JsonDocument.Parse(json);
-        return doc.RootElement.GetProperty("text").GetString() ?? string.Empty;
+        var (response, error) = await SendWithRetryAsync(() => CreateTranscribeRequest(wav), cancellationToken);
+        if (error != null || response == null)
+            throw new HttpRequestException(error?.Message, null, error?.StatusCode);
+
+        using (response)
+        {
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.GetProperty("text").GetString() ?? string.Empty;
+        }
     }
 
     public async Task<string> ChatAsync(string prompt, CancellationToken cancellationToken = default)
@@ -103,11 +102,16 @@ public class OpenAIService
                 new { role = "user", content = prompt }
             }
         };
-        using var request = CreateChatRequest(payload);
-        using var response = await SendAsync(request, cancellationToken);
-        var json = await response.Content.ReadAsStringAsync(cancellationToken);
-        using var doc = JsonDocument.Parse(json);
-        return doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? string.Empty;
+        var (response, error) = await SendWithRetryAsync(() => CreateChatRequest(payload), cancellationToken);
+        if (error != null || response == null)
+            throw new HttpRequestException(error?.Message, null, error?.StatusCode);
+
+        using (response)
+        {
+            var json = await response.Content.ReadAsStringAsync(cancellationToken);
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? string.Empty;
+        }
     }
 
     private HttpRequestMessage CreateChatRequest(object payload)
@@ -119,24 +123,16 @@ public class OpenAIService
         return request;
     }
 
-    private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken = default)
+    private HttpRequestMessage CreateTranscribeRequest(byte[] wav)
     {
-        try
-        {
-            var response = await _httpClient.SendAsync(request, cancellationToken);
-            if (!response.IsSuccessStatusCode)
-            {
-                var body = await response.Content.ReadAsStringAsync(cancellationToken);
-                throw new HttpRequestException($"OpenAI request failed with status code {response.StatusCode}: {body}");
-            }
-
-            return response;
-        }
-        catch (HttpRequestException ex)
-        {
-            _logger.LogError(ex, "OpenAI API call failed");
-            throw;
-        }
+        var apiKey = _settings.ApiKey;
+        var content = new MultipartFormDataContent();
+        content.Add(new ByteArrayContent(wav), "file", "audio.wav");
+        content.Add(new StringContent("whisper-1"), "model");
+        var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/audio/transcriptions");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        request.Content = content;
+        return request;
     }
 
     private async Task<(HttpResponseMessage? Response, OpenAIError? Error)> SendWithRetryAsync(Func<HttpRequestMessage> requestFactory, CancellationToken cancellationToken)

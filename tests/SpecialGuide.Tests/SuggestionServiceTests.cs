@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using SpecialGuide.Core.Services;
@@ -55,6 +56,18 @@ public class SuggestionServiceTests
         Assert.Equal("boom", result.Error?.Message);
     }
 
+    [Fact]
+    public async Task Returns_Error_When_Capture_Fails()
+    {
+        var capture = new ThrowingCaptureService();
+        var openai = new ThrowingOpenAIService();
+        var settings = new SettingsService(new Settings());
+        var service = new SuggestionService(capture, openai, settings);
+        var result = await service.GetSuggestionsAsync("app", CancellationToken.None);
+        Assert.Equal("kapow", result.Error?.Message);
+        Assert.Empty(result.Suggestions);
+    }
+
     private class FakeCaptureService : CaptureService
     {
         public FakeCaptureService() : base(new SettingsService(new Settings())) { }
@@ -83,6 +96,19 @@ public class SuggestionServiceTests
         public ErrorOpenAIService() : base(new HttpClient(), new SettingsService(new Settings()), new LoggingService()) { }
         public override Task<SuggestionResult> GenerateSuggestionsAsync(byte[] image, string appName, CancellationToken cancellationToken = default)
             => Task.FromResult(new SuggestionResult(Array.Empty<string>(), new OpenAIError(null, "boom")));
+    }
+
+    private class ThrowingCaptureService : CaptureService
+    {
+        public ThrowingCaptureService() : base(new SettingsService(new Settings())) { }
+        public override byte[] CaptureScreen() => throw new Exception("kapow");
+    }
+
+    private class ThrowingOpenAIService : OpenAIService
+    {
+        public ThrowingOpenAIService() : base(new HttpClient(), new SettingsService(new Settings()), new LoggingService()) { }
+        public override Task<SuggestionResult> GenerateSuggestionsAsync(byte[] image, string appName, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("should not be called");
     }
 }
 
