@@ -68,13 +68,15 @@ public partial class MainWindow : Window
         }
         finally
         {
+            _cts?.Dispose();
+            _cts = null;
             _busy = false;
         }
     }
 
     private void CancelActive()
     {
-        if (!_busy) return;
-        _cts?.Cancel();
+        if (!_busy || _cts == null) return;
+        _cts.Cancel();
     }
 }
