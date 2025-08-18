@@ -18,6 +18,7 @@ public partial class RadialMenuWindow : Window, IRadialMenu
     private readonly SuggestionHistoryService _historyService;
     private int _historyIndex = -1;
     private bool _recording;
+    private CancellationTokenSource? _transcriptionCts;
 
     public RadialMenuWindow(ClipboardService clipboardService, HookService hookService, AudioService audioService, OpenAIService openAIService, SuggestionHistoryService historyService)
     {
@@ -28,7 +29,7 @@ public partial class RadialMenuWindow : Window, IRadialMenu
         _openAIService = openAIService;
         _historyService = historyService;
         MicButton.Click += OnMicClicked;
-        CancelButton.Click += (_, _) => { CancelRequested?.Invoke(this, EventArgs.Empty); Hide(); };
+        CancelButton.Click += (_, _) => { CancelTranscription(); CancelRequested?.Invoke(this, EventArgs.Empty); Hide(); };
         HistoryButton.Click += (_, _) => ShowHistory();
     }
     
@@ -99,6 +100,7 @@ public partial class RadialMenuWindow : Window, IRadialMenu
 
     public new void Hide()
     {
+        CancelTranscription();
         if (_recording)
         {
             _audioService.Stop();
@@ -124,17 +126,25 @@ public partial class RadialMenuWindow : Window, IRadialMenu
             _recording = false;
             MicButton.Content = "🎤";
             MicButton.ClearValue(Control.BackgroundProperty);
+            _transcriptionCts = new CancellationTokenSource();
             try
             {
-                var text = await _openAIService.TranscribeAsync(data, CancellationToken.None);
+                var text = await _openAIService.TranscribeAsync(data, _transcriptionCts.Token);
                 if (!string.IsNullOrWhiteSpace(text))
                 {
                     _clipboardService.SetText(text);
                 }
             }
+            catch (OperationCanceledException)
+            {
+            }
             catch
             {
                 MessageBox.Show("Transcription failed", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                CancelTranscription();
             }
             Hide();
         }
@@ -157,6 +167,7 @@ public partial class RadialMenuWindow : Window, IRadialMenu
     {
         if (e.Key == Key.Escape)
         {
+            CancelTranscription();
             CancelRequested?.Invoke(this, EventArgs.Empty);
             e.Handled = true;
             Hide();
@@ -169,6 +180,19 @@ public partial class RadialMenuWindow : Window, IRadialMenu
             return;
         }
         base.OnKeyDown(e);
+    }
+
+    private void CancelTranscription()
+    {
+        if (_transcriptionCts != null)
+        {
+            if (!_transcriptionCts.IsCancellationRequested)
+            {
+                _transcriptionCts.Cancel();
+            }
+            _transcriptionCts.Dispose();
+            _transcriptionCts = null;
+        }
     }
 
     private void ShowHistory()
