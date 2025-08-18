@@ -27,6 +27,14 @@
   <ItemGroup>
     <Compile Include="GlobalUsings.cs" />
     <Compile Include="HookServiceTests.cs" />
+    <Compile Include="AudioServiceTests.cs" />
+    <Compile Include="CaptureServiceTests.cs" />
+    <Compile Include="OpenAIServiceTests.cs" />
+    <Compile Include="SettingsSerializationTests.cs" />
+    <Compile Include="SettingsServiceTests.cs" />
+    <Compile Include="OverlayCancellationTests.cs" />
+    <Compile Include="SuggestionServiceTests.cs" />
+    <Compile Include="ClipboardServiceTests.cs" />
   </ItemGroup>
 
   <ItemGroup>

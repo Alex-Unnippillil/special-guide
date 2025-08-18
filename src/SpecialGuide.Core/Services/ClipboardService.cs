@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Windows;
 
 namespace SpecialGuide.Core.Services;
@@ -18,16 +19,35 @@ public class ClipboardService
 
     public void UpdateAutoPaste(bool autoPaste) => AutoPaste = autoPaste;
 
-    public virtual void SetText(string text)
+    public virtual bool SetText(string text)
     {
-        Clipboard.SetText(text);
-        if (AutoPaste)
+        const int maxAttempts = 3;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            SendCtrlV();
+            try
+            {
+                ClipboardSetText(text);
+                if (AutoPaste)
+                {
+                    SendCtrlV();
+                }
+                return true;
+            }
+            catch (ExternalException) when (attempt < maxAttempts)
+            {
+                Thread.Sleep(50);
+            }
+            catch (ExternalException ex)
+            {
+                throw new ClipboardWriteException("Failed to set clipboard text", ex);
+            }
         }
+        return false;
     }
 
-    private static void SendCtrlV()
+    protected virtual void ClipboardSetText(string text) => Clipboard.SetText(text);
+
+    protected virtual void SendCtrlV()
     {
         var inputs = new INPUT[]
         {
