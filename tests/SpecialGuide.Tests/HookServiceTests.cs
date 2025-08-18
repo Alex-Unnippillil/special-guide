@@ -91,6 +91,25 @@ public class HookServiceTests
     }
 
     [Fact]
+    public void Save_Reloads_Hooks_When_Hotkey_Changes()
+    {
+        var settings = new Settings();
+        var svc = new SettingsService(settings);
+        var service = new HookService(svc, RegisterHook, UnregisterHook);
+
+        service.Start();
+        Assert.Equal(0, _keyboardHookCount);
+
+        settings.Hotkey = "Alt+H";
+        svc.Save();
+        Assert.Equal(1, _keyboardHookCount);
+
+        settings.Hotkey = string.Empty;
+        svc.Save();
+        Assert.Equal(0, _keyboardHookCount);
+    }
+
+    [Fact]
     public void HotkeyPressed_Fires_For_Mouse_Or_Hotkey()
     {
         var settings = new Settings { Hotkey = "K" };
