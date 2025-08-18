@@ -85,9 +85,14 @@ public partial class RadialMenuWindow : Window, IRadialMenu
 
     public void Show(double x, double y)
     {
-        Left = x - Width / 2;
-        Top = y - Height / 2;
+        // Display the window so that ActualWidth/ActualHeight are measured
         Show();
+        // Ensure layout is up to date before positioning
+        UpdateLayout();
+
+        // Center the menu on the cursor position
+        Left = x - ActualWidth / 2;
+        Top = y - ActualHeight / 2;
         _hookService.SetOverlayVisible(true);
         Activate();
     }
