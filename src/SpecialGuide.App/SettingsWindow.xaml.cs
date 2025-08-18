@@ -20,5 +20,7 @@ public partial class SettingsWindow : Window
 
         Close();
     }
+
+    private void OnCancel(object sender, RoutedEventArgs e) => Close();
 }
 

@@ -3,7 +3,8 @@ namespace SpecialGuide.Core.Models;
 public enum CaptureMode
 {
     FullScreen,
-    ActiveWindow
+    ActiveWindow,
+    CursorRegion
 }
 
 public class Settings

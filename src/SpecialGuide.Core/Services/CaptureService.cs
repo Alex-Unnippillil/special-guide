@@ -29,6 +29,19 @@ public class CaptureService
                 // Fall back to full screen
             }
         }
+
+        if (_settings.Settings.CaptureMode == CaptureMode.CursorRegion)
+        {
+            try
+            {
+                return CaptureCursorRegion();
+            }
+            catch
+            {
+                // Fall back to full screen
+            }
+        }
+
         return CaptureFullScreen();
     }
 
@@ -85,6 +98,27 @@ public class CaptureService
         return ms.ToArray();
     }
 
+    protected virtual byte[] CaptureCursorRegion(int width = 400, int height = 400)
+    {
+        if (!OperatingSystem.IsWindows())
+            throw new PlatformNotSupportedException();
+
+        if (!GetCursorPos(out POINT cursor))
+            return CaptureFullScreen();
+
+        var left = cursor.X - width / 2;
+        var top = cursor.Y - height / 2;
+
+        using var bmp = new Bitmap(width, height);
+        using (var g = Graphics.FromImage(bmp))
+        {
+            g.CopyFromScreen(left, top, 0, 0, new Size(width, height));
+        }
+        using var ms = new MemoryStream();
+        bmp.Save(ms, ImageFormat.Png);
+        return ms.ToArray();
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     protected struct RECT
     {
@@ -107,4 +141,14 @@ public class CaptureService
 
     [DllImport("user32.dll")]
     private static extern int GetSystemMetrics(int nIndex);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out POINT lpPoint);
+
+    [StructLayout(LayoutKind.Sequential)]
+    protected struct POINT
+    {
+        public int X;
+        public int Y;
+    }
 }

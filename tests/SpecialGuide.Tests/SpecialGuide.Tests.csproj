@@ -28,6 +28,7 @@
     <Compile Include="GlobalUsings.cs" />
     <Compile Include="HookServiceTests.cs" />
     <Compile Include="AudioServiceTests.cs" />
+    <Compile Include="CaptureServiceTests.cs" />
 
   </ItemGroup>
 
