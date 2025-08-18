@@ -87,7 +87,7 @@ public class OverlayCancellationTests
     private class CancelableSuggestionService : SuggestionService
     {
         public bool WasCanceled { get; private set; }
-        public CancelableSuggestionService() : base(new FakeCapture(), new FakeOpenAI(), new SettingsService(new Settings())) { }
+        public CancelableSuggestionService() : base(new FakeCapture(), new FakeOpenAI(), new SettingsService(new Settings()), new SuggestionHistoryService()) { }
         public override async Task<SuggestionResult> GetSuggestionsAsync(string app, CancellationToken cancellationToken = default)
         {
             try

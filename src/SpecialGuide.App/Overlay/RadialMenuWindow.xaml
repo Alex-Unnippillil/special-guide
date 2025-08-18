@@ -7,6 +7,7 @@
         <Button x:Name="MicButton" Content="🎤" Width="40" Height="40"/>
         <ProgressBar x:Name="Spinner" Width="60" Height="10" IsIndeterminate="True" Visibility="Collapsed"/>
         <Button x:Name="CancelButton" Content="✖" Width="30" Height="30" Visibility="Collapsed"/>
+        <Button x:Name="HistoryButton" Content="🕘" Width="30" Height="30" Visibility="Collapsed"/>
         <!-- Items added dynamically -->
     </Canvas>
 </Window>

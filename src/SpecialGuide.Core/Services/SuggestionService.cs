@@ -11,12 +11,14 @@ public class SuggestionService
     private readonly CaptureService _capture;
     private readonly OpenAIService _openAI;
     private readonly SettingsService _settings;
+    private readonly SuggestionHistoryService _history;
 
-    public SuggestionService(CaptureService capture, OpenAIService openAI, SettingsService settings)
+    public SuggestionService(CaptureService capture, OpenAIService openAI, SettingsService settings, SuggestionHistoryService history)
     {
         _capture = capture;
         _openAI = openAI;
         _settings = settings;
+        _history = history;
     }
 
     public async Task<SuggestionResult> GetSuggestionsAsync(string appName, CancellationToken cancellationToken = default)
@@ -36,6 +38,10 @@ public class SuggestionService
             var result = await _openAI.GenerateSuggestionsAsync(image, appName, cancellationToken);
             var max = _settings.Settings.MaxSuggestionLength;
             var suggestions = result.Suggestions.Select(s => s.Length > max ? s[..max] : s).ToArray();
+            if (result.Error == null && suggestions.Length > 0)
+            {
+                _history.Add(suggestions);
+            }
             return result with { Suggestions = suggestions };
         }
         catch (OperationCanceledException)
