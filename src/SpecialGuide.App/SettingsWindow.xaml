@@ -8,6 +8,8 @@
         <CheckBox Content="Auto Paste" IsChecked="{Binding AutoPaste}" Margin="0,0,0,10" />
         <TextBlock Text="Max Suggestion Length" />
         <TextBox Text="{Binding MaxSuggestionLength}" Margin="0,0,0,10" />
+        <TextBlock Text="Suggestion Count" />
+        <TextBox Text="{Binding SuggestionCount}" Margin="0,0,0,10" />
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Save" Width="80" Margin="0,0,5,0" Click="OnSave" />
             <Button Content="Cancel" Width="80" Click="OnCancel" />
