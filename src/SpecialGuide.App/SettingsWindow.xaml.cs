@@ -9,13 +9,22 @@ namespace SpecialGuide.App;
 public partial class SettingsWindow : Window
 {
     private readonly SettingsService _settings;
+    private readonly SettingsViewModel _model;
 
 
     public SettingsWindow(SettingsService settings)
     {
         InitializeComponent();
         _settings = settings;
-
+        _model = new SettingsViewModel
+        {
+            ApiKey = _settings.Settings.ApiKey,
+            AutoPaste = _settings.Settings.AutoPaste,
+            CaptureMode = _settings.Settings.CaptureMode,
+            Hotkey = _settings.Settings.Hotkey,
+            MaxSuggestionLength = _settings.Settings.MaxSuggestionLength
+        };
+        DataContext = _model;
     }
 
     private void OnSave(object sender, RoutedEventArgs e)
