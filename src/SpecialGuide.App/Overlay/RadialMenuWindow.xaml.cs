@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Threading;
 using SpecialGuide.Core.Models;
 using SpecialGuide.Core.Services;
 
@@ -111,7 +112,7 @@ public partial class RadialMenuWindow : Window, IRadialMenu
             MicButton.ClearValue(Control.BackgroundProperty);
             try
             {
-                var text = await _openAIService.TranscribeAsync(data);
+                var text = await _openAIService.TranscribeAsync(data, CancellationToken.None);
                 if (!string.IsNullOrWhiteSpace(text))
                 {
                     _clipboardService.SetText(text);

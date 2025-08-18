@@ -19,7 +19,7 @@ namespace SpecialGuide.Tests
             var handler = new FakeHandler("{\"choices\":[{\"message\":{\"content\":\"[\\\"one\\\",\\\"two\\\"]\"}}]}");
             var http = new HttpClient(handler);
             var service = new OpenAIService(http, new SettingsService(new Settings()), new LoggingService());
-            var result = await service.GenerateSuggestionsAsync(Array.Empty<byte>(), "app");
+            var result = await service.GenerateSuggestionsAsync(Array.Empty<byte>(), "app", CancellationToken.None);
             Assert.Equal(new[] { "one", "two" }, result.Suggestions);
             Assert.Null(result.Error);
         }
@@ -30,7 +30,7 @@ namespace SpecialGuide.Tests
             var handler = new FakeHandler("{\"choices\":[{\"message\":{\"content\":\"not json\"}}]}");
             var http = new HttpClient(handler);
             var service = new OpenAIService(http, new SettingsService(new Settings()), new LoggingService());
-            var result = await service.GenerateSuggestionsAsync(Array.Empty<byte>(), "app");
+            var result = await service.GenerateSuggestionsAsync(Array.Empty<byte>(), "app", CancellationToken.None);
             Assert.NotNull(result.Error);
             Assert.Equal("Malformed response from OpenAI", result.Error!.Message);
             Assert.Empty(result.Suggestions);
@@ -50,7 +50,7 @@ namespace SpecialGuide.Tests
             var handler = new SequenceHandler(responses);
             var http = new HttpClient(handler);
             var service = new OpenAIService(http, new SettingsService(new Settings()), new LoggingService());
-            var result = await service.GenerateSuggestionsAsync(Array.Empty<byte>(), "app");
+            var result = await service.GenerateSuggestionsAsync(Array.Empty<byte>(), "app", CancellationToken.None);
             Assert.Equal(2, handler.Calls);
             Assert.Empty(result.Suggestions);
             Assert.Null(result.Error);
@@ -68,7 +68,7 @@ namespace SpecialGuide.Tests
             var handler = new SequenceHandler(responses);
             var http = new HttpClient(handler);
             var service = new OpenAIService(http, new SettingsService(new Settings()), new LoggingService());
-            var result = await service.GenerateSuggestionsAsync(Array.Empty<byte>(), "app");
+            var result = await service.GenerateSuggestionsAsync(Array.Empty<byte>(), "app", CancellationToken.None);
             Assert.Equal(3, handler.Calls);
             Assert.Empty(result.Suggestions);
             Assert.NotNull(result.Error);
@@ -87,7 +87,7 @@ namespace SpecialGuide.Tests
             var handler = new SequenceHandler(responses);
             var http = new HttpClient(handler);
             var service = new OpenAIService(http, new SettingsService(new Settings()), new LoggingService());
-            var result = await service.GenerateSuggestionsAsync(Array.Empty<byte>(), "app");
+            var result = await service.GenerateSuggestionsAsync(Array.Empty<byte>(), "app", CancellationToken.None);
             Assert.Equal(3, handler.Calls);
             Assert.Empty(result.Suggestions);
             Assert.NotNull(result.Error);

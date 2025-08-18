@@ -24,6 +24,8 @@ public partial class MainWindow : Window
         _windowService = windowService;
         _logger = logger;
 
+        _overlayService.CancelRequested += (_, _) => CancelActive();
+
         _hookService.HotkeyPressed += async (sender, e) =>
         {
             try
@@ -52,7 +54,7 @@ public partial class MainWindow : Window
             var result = await _suggestionService.GetSuggestionsAsync(app, _cts.Token);
             if (result.Error != null)
             {
-                MessageBox.Show(result.Error, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show(result.Error.Message, "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 _overlayService.Hide();
             }
             else
