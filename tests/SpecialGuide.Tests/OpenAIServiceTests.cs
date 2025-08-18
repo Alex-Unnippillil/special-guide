@@ -94,6 +94,78 @@ namespace SpecialGuide.Tests
             Assert.Equal((HttpStatusCode)429, result.Error!.StatusCode);
         }
 
+        [Fact]
+        public async Task ChatAsync_Retries_On_429_Then_Succeeds()
+        {
+            var responses = new[]
+            {
+                new HttpResponseMessage((HttpStatusCode)429),
+                new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"choices\":[{\"message\":{\"content\":\"hi\"}}]}")
+                }
+            };
+            var handler = new SequenceHandler(responses);
+            var http = new HttpClient(handler);
+            var service = new OpenAIService(http, new SettingsService(new Settings()), new LoggingService());
+            var result = await service.ChatAsync("hello", CancellationToken.None);
+            Assert.Equal(2, handler.Calls);
+            Assert.Equal("hi", result);
+        }
+
+        [Fact]
+        public async Task ChatAsync_Gives_Up_After_Retries()
+        {
+            var responses = new[]
+            {
+                new HttpResponseMessage(HttpStatusCode.BadGateway),
+                new HttpResponseMessage(HttpStatusCode.BadGateway),
+                new HttpResponseMessage(HttpStatusCode.BadGateway)
+            };
+            var handler = new SequenceHandler(responses);
+            var http = new HttpClient(handler);
+            var service = new OpenAIService(http, new SettingsService(new Settings()), new LoggingService());
+            var ex = await Assert.ThrowsAsync<HttpRequestException>(() => service.ChatAsync("hello", CancellationToken.None));
+            Assert.Equal(3, handler.Calls);
+            Assert.Equal(HttpStatusCode.BadGateway, ex.StatusCode);
+        }
+
+        [Fact]
+        public async Task TranscribeAsync_Retries_On_500_Then_Succeeds()
+        {
+            var responses = new[]
+            {
+                new HttpResponseMessage(HttpStatusCode.InternalServerError),
+                new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("{\"text\":\"ok\"}")
+                }
+            };
+            var handler = new SequenceHandler(responses);
+            var http = new HttpClient(handler);
+            var service = new OpenAIService(http, new SettingsService(new Settings()), new LoggingService());
+            var result = await service.TranscribeAsync(Array.Empty<byte>(), CancellationToken.None);
+            Assert.Equal(2, handler.Calls);
+            Assert.Equal("ok", result);
+        }
+
+        [Fact]
+        public async Task TranscribeAsync_Gives_Up_After_Retries()
+        {
+            var responses = new[]
+            {
+                new HttpResponseMessage(HttpStatusCode.InternalServerError),
+                new HttpResponseMessage(HttpStatusCode.InternalServerError),
+                new HttpResponseMessage(HttpStatusCode.InternalServerError)
+            };
+            var handler = new SequenceHandler(responses);
+            var http = new HttpClient(handler);
+            var service = new OpenAIService(http, new SettingsService(new Settings()), new LoggingService());
+            var ex = await Assert.ThrowsAsync<HttpRequestException>(() => service.TranscribeAsync(Array.Empty<byte>(), CancellationToken.None));
+            Assert.Equal(3, handler.Calls);
+            Assert.Equal(HttpStatusCode.InternalServerError, ex.StatusCode);
+        }
+
         private class FakeHandler : HttpMessageHandler
         {
             private readonly string _response;
