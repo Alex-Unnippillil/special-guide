@@ -2,7 +2,9 @@ using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using SpecialGuide.Core.Models;
 
 namespace SpecialGuide.Core.Services;
@@ -60,6 +62,7 @@ public class CaptureService
         {
             g.CopyFromScreen(rect.Left, rect.Top, 0, 0, bmp.Size);
         }
+        RedactTitleArea(bmp, hwnd);
         using var ms = new MemoryStream();
         bmp.Save(ms, ImageFormat.Png);
         return ms.ToArray();
@@ -85,6 +88,26 @@ public class CaptureService
         return ms.ToArray();
     }
 
+    protected virtual void RedactTitleArea(Bitmap bmp, IntPtr hwnd)
+    {
+        if (!_settings.Settings.RedactTitle || !OperatingSystem.IsWindows())
+            return;
+
+        if (_settings.Settings.RedactTitlePatterns.Count > 0)
+        {
+            var length = GetWindowTextLength(hwnd);
+            var sb = new StringBuilder(length + 1);
+            GetWindowText(hwnd, sb, sb.Capacity);
+            var title = sb.ToString();
+            if (!_settings.Settings.RedactTitlePatterns.Any(p => title.Contains(p, StringComparison.OrdinalIgnoreCase)))
+                return;
+        }
+
+        var titleHeight = GetSystemMetrics(SM_CYCAPTION);
+        using var g = Graphics.FromImage(bmp);
+        g.FillRectangle(Brushes.Black, 0, 0, bmp.Width, titleHeight);
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     protected struct RECT
     {
@@ -98,6 +121,7 @@ public class CaptureService
     private const int SM_CYVIRTUALSCREEN = 79;
     private const int SM_XVIRTUALSCREEN = 76;
     private const int SM_YVIRTUALSCREEN = 77;
+    private const int SM_CYCAPTION = 4;
 
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
@@ -107,4 +131,10 @@ public class CaptureService
 
     [DllImport("user32.dll")]
     private static extern int GetSystemMetrics(int nIndex);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetWindowTextLength(IntPtr hWnd);
 }
