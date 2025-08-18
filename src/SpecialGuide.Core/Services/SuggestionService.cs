@@ -21,7 +21,16 @@ public class SuggestionService
 
     public async Task<SuggestionResult> GetSuggestionsAsync(string appName, CancellationToken cancellationToken = default)
     {
-        var image = _capture.CaptureScreen();
+        byte[] image;
+        try
+        {
+            image = _capture.CaptureScreen();
+        }
+        catch (Exception ex)
+        {
+            return new SuggestionResult(Array.Empty<string>(), new OpenAIError(null, ex.Message));
+        }
+
         try
         {
             var result = await _openAI.GenerateSuggestionsAsync(image, appName, cancellationToken);
