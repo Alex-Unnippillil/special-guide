@@ -15,17 +15,21 @@ public partial class RadialMenuWindow : Window, IRadialMenu
     private readonly HookService _hookService;
     private readonly AudioService _audioService;
     private readonly OpenAIService _openAIService;
+    private readonly SuggestionHistoryService _historyService;
+    private int _historyIndex = -1;
     private bool _recording;
 
-    public RadialMenuWindow(ClipboardService clipboardService, HookService hookService, AudioService audioService, OpenAIService openAIService)
+    public RadialMenuWindow(ClipboardService clipboardService, HookService hookService, AudioService audioService, OpenAIService openAIService, SuggestionHistoryService historyService)
     {
         InitializeComponent();
         _clipboardService = clipboardService;
         _hookService = hookService;
         _audioService = audioService;
         _openAIService = openAIService;
+        _historyService = historyService;
         MicButton.Click += OnMicClicked;
         CancelButton.Click += (_, _) => { CancelRequested?.Invoke(this, EventArgs.Empty); Hide(); };
+        HistoryButton.Click += (_, _) => ShowHistory();
     }
     
     public event EventHandler? CancelRequested;
@@ -48,6 +52,7 @@ public partial class RadialMenuWindow : Window, IRadialMenu
     {
         RootCanvas.Children.Clear();
         _recording = false;
+        _historyIndex = -1;
         MicButton.Content = "🎤";
         MicButton.ClearValue(Control.BackgroundProperty);
         Spinner.Visibility = Visibility.Collapsed;
@@ -55,8 +60,12 @@ public partial class RadialMenuWindow : Window, IRadialMenu
         var count = suggestions.Length;
         var radius = 80d;
         RootCanvas.Children.Add(MicButton);
+        RootCanvas.Children.Add(HistoryButton);
         Canvas.SetLeft(MicButton, radius - MicButton.Width / 2);
         Canvas.SetTop(MicButton, radius - MicButton.Height / 2);
+        Canvas.SetLeft(HistoryButton, radius - HistoryButton.Width / 2);
+        Canvas.SetTop(HistoryButton, radius + 20);
+        HistoryButton.Visibility = Visibility.Visible;
         for (int i = 0; i < count; i++)
         {
             var angle = 2 * Math.PI * i / count;
@@ -148,6 +157,20 @@ public partial class RadialMenuWindow : Window, IRadialMenu
             Hide();
             return;
         }
+        if (e.Key == Key.H)
+        {
+            ShowHistory();
+            e.Handled = true;
+            return;
+        }
         base.OnKeyDown(e);
+    }
+
+    private void ShowHistory()
+    {
+        var history = _historyService.GetHistory();
+        if (history.Count == 0) return;
+        _historyIndex = (_historyIndex + 1) % history.Count;
+        Populate(history[_historyIndex]);
     }
 }

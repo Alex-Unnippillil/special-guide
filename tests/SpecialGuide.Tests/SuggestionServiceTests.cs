@@ -14,7 +14,7 @@ public class SuggestionServiceTests
         var capture = new FakeCaptureService();
         var openai = new FakeOpenAIService();
         var settings = new SettingsService(new Settings());
-        var service = new SuggestionService(capture, openai, settings);
+        var service = new SuggestionService(capture, openai, settings, new SuggestionHistoryService());
         var result = await service.GetSuggestionsAsync("app", CancellationToken.None);
         Assert.All(result.Suggestions, s => Assert.True(s.Length <= SuggestionService.DefaultMaxSuggestionLength));
     }
@@ -25,7 +25,7 @@ public class SuggestionServiceTests
         var capture = new FakeCaptureService();
         var openai = new FakeOpenAIService();
         var settings = new SettingsService(new Settings { MaxSuggestionLength = 10 });
-        var service = new SuggestionService(capture, openai, settings);
+        var service = new SuggestionService(capture, openai, settings, new SuggestionHistoryService());
         var result = await service.GetSuggestionsAsync("app", CancellationToken.None);
         Assert.All(result.Suggestions, s => Assert.True(s.Length <= 10));
     }
@@ -36,7 +36,7 @@ public class SuggestionServiceTests
         var capture = new FakeCaptureService();
         var openai = new CancelingOpenAIService();
         var settings = new SettingsService(new Settings());
-        var service = new SuggestionService(capture, openai, settings);
+        var service = new SuggestionService(capture, openai, settings, new SuggestionHistoryService());
         var cts = new CancellationTokenSource();
         cts.Cancel();
         var result = await service.GetSuggestionsAsync("app", cts.Token);
@@ -51,7 +51,7 @@ public class SuggestionServiceTests
         var capture = new FakeCaptureService();
         var openai = new ErrorOpenAIService();
         var settings = new SettingsService(new Settings());
-        var service = new SuggestionService(capture, openai, settings);
+        var service = new SuggestionService(capture, openai, settings, new SuggestionHistoryService());
         var result = await service.GetSuggestionsAsync("app", CancellationToken.None);
         Assert.Equal("boom", result.Error?.Message);
     }
@@ -62,7 +62,7 @@ public class SuggestionServiceTests
         var capture = new ThrowingCaptureService();
         var openai = new ThrowingOpenAIService();
         var settings = new SettingsService(new Settings());
-        var service = new SuggestionService(capture, openai, settings);
+        var service = new SuggestionService(capture, openai, settings, new SuggestionHistoryService());
         var result = await service.GetSuggestionsAsync("app", CancellationToken.None);
         Assert.Equal("kapow", result.Error?.Message);
         Assert.Empty(result.Suggestions);

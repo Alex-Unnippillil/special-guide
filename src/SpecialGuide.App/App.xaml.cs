@@ -28,6 +28,8 @@ public partial class App : Application
                 services.AddHttpClient<OpenAIService>();
                 services.AddSingleton<AudioService>();
                 services.AddSingleton<SettingsService>();
+                services.AddSingleton<SuggestionHistoryService>();
+                services.AddSingleton<SuggestionService>();
                 services.AddSingleton<ClipboardService>();
                 services.AddSingleton<WindowService>();
                 services.AddSingleton<MainWindow>();
