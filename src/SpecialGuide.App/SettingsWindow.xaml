@@ -11,9 +11,6 @@
         <TextBlock Text="Max Suggestion Length" />
         <TextBox Text="{Binding MaxSuggestionLength}" Margin="0,0,0,10" />
 
-        <TextBlock Text="Hotkey" />
-        <TextBox Text="{Binding Hotkey}" Margin="0,0,0,10" PreviewKeyDown="OnHotkeyPreviewKeyDown" IsReadOnly="True" />
-
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Save" Width="80" Margin="0,0,5,0" Click="OnSave" />
             <Button Content="Cancel" Width="80" Click="OnCancel" />
