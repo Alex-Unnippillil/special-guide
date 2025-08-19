@@ -71,6 +71,17 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
+        <TextBlock Text="Hotkey" />
+        <TextBox x:Name="HotkeyBox"
+                 Text="{Binding Hotkey}"
+                 Margin="0,0,0,2"
+                 IsReadOnly="True"
+                 PreviewKeyDown="HotkeyBox_OnPreviewKeyDown" />
+        <TextBlock x:Name="HotkeyError"
+                   Foreground="Red"
+                   Visibility="Collapsed"
+                   Margin="0,0,0,10"/>
+=======
         <TextBlock Grid.Row="0" Text="API Key" Margin="0,0,5,5" />
         <TextBox Grid.Row="0" Grid.Column="1" Margin="0,0,0,10"
                  Text="{Binding ApiKey, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True}"
