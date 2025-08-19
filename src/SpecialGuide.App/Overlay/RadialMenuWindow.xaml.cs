@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Threading;
+using System.Collections.Generic;
 using SpecialGuide.Core.Models;
 using SpecialGuide.Core.Services;
 
@@ -39,6 +40,9 @@ public partial class RadialMenuWindow : Window, IRadialMenu
     {
         RootCanvas.Children.Clear();
         var radius = 80d;
+        var diameter = radius * 2;
+        RootCanvas.Width = diameter;
+        RootCanvas.Height = diameter;
         RootCanvas.Children.Add(Spinner);
         RootCanvas.Children.Add(CancelButton);
         Canvas.SetLeft(Spinner, radius - Spinner.Width / 2);
@@ -60,25 +64,45 @@ public partial class RadialMenuWindow : Window, IRadialMenu
         CancelButton.Visibility = Visibility.Collapsed;
         var count = suggestions.Length;
         var radius = 80d;
+
+        var buttons = new List<Button>();
+        double maxWidth = 0, maxHeight = 0;
+        foreach (var text in suggestions)
+        {
+            var button = new Button
+            {
+                Content = text,
+                Tag = text,
+                Style = (Style)FindResource("SuggestionButtonStyle")
+            };
+            button.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            maxWidth = Math.Max(maxWidth, button.DesiredSize.Width);
+            maxHeight = Math.Max(maxHeight, button.DesiredSize.Height);
+            buttons.Add(button);
+        }
+
+        var centerX = radius + maxWidth / 2;
+        var centerY = radius + maxHeight / 2;
+
+        RootCanvas.Width = 2 * radius + maxWidth;
+        RootCanvas.Height = 2 * radius + maxHeight;
+
         RootCanvas.Children.Add(MicButton);
         RootCanvas.Children.Add(HistoryButton);
-        Canvas.SetLeft(MicButton, radius - MicButton.Width / 2);
-        Canvas.SetTop(MicButton, radius - MicButton.Height / 2);
-        Canvas.SetLeft(HistoryButton, radius - HistoryButton.Width / 2);
-        Canvas.SetTop(HistoryButton, radius + 20);
+        Canvas.SetLeft(MicButton, centerX - MicButton.Width / 2);
+        Canvas.SetTop(MicButton, centerY - MicButton.Height / 2);
+        Canvas.SetLeft(HistoryButton, centerX - HistoryButton.Width / 2);
+        Canvas.SetTop(HistoryButton, centerY + 20);
         HistoryButton.Visibility = Visibility.Visible;
+
         for (int i = 0; i < count; i++)
         {
             var angle = 2 * Math.PI * i / count;
-            var button = new Button
-            {
-                Content = suggestions[i],
-                Width = 80,
-                Height = 30,
-                Tag = suggestions[i]
-            };
-            Canvas.SetLeft(button, radius + radius * Math.Cos(angle) - 40);
-            Canvas.SetTop(button, radius + radius * Math.Sin(angle) - 15);
+            var button = buttons[i];
+            var w = button.DesiredSize.Width;
+            var h = button.DesiredSize.Height;
+            Canvas.SetLeft(button, centerX + radius * Math.Cos(angle) - w / 2);
+            Canvas.SetTop(button, centerY + radius * Math.Sin(angle) - h / 2);
             button.Click += (_, _) => OnSuggestionSelected((string)button.Tag);
             RootCanvas.Children.Add(button);
         }
