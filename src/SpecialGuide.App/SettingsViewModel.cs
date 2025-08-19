@@ -3,7 +3,7 @@ using SpecialGuide.Core.Models;
 
 namespace SpecialGuide.App;
 
-public class SettingsViewModel : INotifyPropertyChanged
+public class SettingsViewModel : INotifyPropertyChanged, IDataErrorInfo
 {
     private string _apiKey = string.Empty;
     private bool _autoPaste;
@@ -75,6 +75,18 @@ public class SettingsViewModel : INotifyPropertyChanged
             }
         }
     }
+
+    public string Error => string.Empty;
+
+    public string this[string columnName]
+        => columnName switch
+        {
+            nameof(ApiKey) when string.IsNullOrWhiteSpace(ApiKey)
+                => "API key is required.",
+            nameof(MaxSuggestionLength) when MaxSuggestionLength <= 0
+                => "Max suggestion length must be greater than zero.",
+            _ => string.Empty
+        };
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
