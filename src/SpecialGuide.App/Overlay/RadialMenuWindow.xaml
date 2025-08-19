@@ -3,6 +3,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ShowInTaskbar="False" Topmost="True" SizeToContent="WidthAndHeight" Focusable="True">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="OverlayStyles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
     <Canvas x:Name="RootCanvas" Width="200" Height="200">
         <Button x:Name="MicButton" Content="🎤" Width="40" Height="40"/>
         <ProgressBar x:Name="Spinner" Width="60" Height="10" IsIndeterminate="True" Visibility="Collapsed"/>
