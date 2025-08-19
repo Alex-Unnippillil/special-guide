@@ -1,5 +1,4 @@
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -14,7 +13,7 @@ public partial class App : Application
     private CancellationTokenSource? _cts;
     private TrayIcon? _trayIcon;
 
-    protected override async Task OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
         _cts = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken.None);
@@ -46,7 +45,7 @@ public partial class App : Application
         _trayIcon.Initialize();
     }
 
-    protected override async Task OnExit(ExitEventArgs e)
+    protected override async void OnExit(ExitEventArgs e)
     {
         _trayIcon?.Dispose();
         if (_host != null && _cts != null)
