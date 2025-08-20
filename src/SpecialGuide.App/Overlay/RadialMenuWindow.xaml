@@ -1,14 +1,1 @@
-<Window x:Class="SpecialGuide.App.Overlay.RadialMenuWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
-        ShowInTaskbar="False" Topmost="True" SizeToContent="WidthAndHeight">
-    <Grid Width="200" Height="200">
-        <Canvas x:Name="RootCanvas" Visibility="Collapsed">
-            <!-- Items added dynamically -->
-        </Canvas>
-        <Border x:Name="LoadingPanel" Background="#80000000">
-            <ProgressBar IsIndeterminate="True" Width="100" Height="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-        </Border>
-    </Grid>
-</Window>
+﻿
